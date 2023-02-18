@@ -33,12 +33,9 @@ Open http://localhost:3000 with your browser to see the project.
 
 ## Specifying the repo to analyze
 
-You can specify the repository you want to analyze on line 8 by replacing the values in
-```commandline
-ORCHESTRATOR = {'name':'THE-REPO-NAME-ARBITRARY',  'repo': 'THEREPOORG/THEREPO'}
-```
+You can Shift+click "Materialize all" on the asset graph page, and specify the repository you want to analyze in the configuration, such as:
+<img width="600" alt="asset config" src="https://user-images.githubusercontent.com/4531914/219830488-7f783e01-a4f9-4691-9421-13c7c7431b93.png">
 
-`name` is arbitrary and `repo` is part tf the public url for your target respository.
 
 ## Explanation of the repo
 

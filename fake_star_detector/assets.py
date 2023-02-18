@@ -3,26 +3,27 @@ import datetime
 import time
 
 import pandas as pd
-from dagster import asset
+from dagster import asset, Field, OpExecutionContext
 
-ORCHESTRATOR = {'name': 'tap-bls',  'repo': 'frasermarlow/tap-bls'}
 GMTOFFSET = (calendar.timegm(time.localtime()) -
              calendar.timegm(time.gmtime()))/3600
 
 
-@asset(group_name="stargazers", required_resource_keys={"github_api"}, compute_kind="github api")
-def stargazers(context) -> list:
+@asset(group_name="stargazers", required_resource_keys={"github_api"}, compute_kind="github api", config_schema={"name": Field(str, default_value="tap-bls"), "repo": Field(str, default_value="frasermarlow/tap-bls")})
+def stargazers(context: OpExecutionContext) -> list:
     """
     1: Retrieve a raw list of all users who starred the repo
     """
-    stargazerCount = 0
-    usersNotFound = list
-    context.log.info(f"Starting extract for {ORCHESTRATOR['name']}")
+
+    name = context.op_config['name']
+    repo_name = context.op_config['repo']
+
+    context.log.info(f"Starting extract for {repo_name}")
     do_call = True
     while do_call:
         try:
             github_api_call = context.resources.github_api.get_repo(
-                ORCHESTRATOR['repo']).get_stargazers_with_dates()
+                repo_name).get_stargazers_with_dates()
             do_call = False
         except Exception as e:
             response = _handle_exception(context, e)
@@ -30,7 +31,7 @@ def stargazers(context) -> list:
                 do_call = True
             elif response is None:
                 context.log.info(
-                    f"That repository cannot be found.  Please check that {ORCHESTRATOR['repo']} is correct.")
+                    f"That repository cannot be found.  Please check that {repo_name} is correct.")
                 do_call = True
                 exit()
             else:
@@ -41,7 +42,7 @@ def stargazers(context) -> list:
     starlist = list(github_api_call)
 
     context.log.info(
-        f"Completed extract for {ORCHESTRATOR['name']} with {len(starlist)} Stargazers. | Cost {int(starlist[0]._headers['x-ratelimit-remaining'])-int(starlist[-1]._headers['x-ratelimit-remaining'])} api tokens. {int(starlist[-1]._headers['x-ratelimit-remaining'])} tokens remaining.")
+        f"Completed extract for {name} with {len(starlist)} Stargazers. | Cost {int(starlist[0]._headers['x-ratelimit-remaining'])-int(starlist[-1]._headers['x-ratelimit-remaining'])} api tokens. {int(starlist[-1]._headers['x-ratelimit-remaining'])} tokens remaining.")
     return starlist
 
 
