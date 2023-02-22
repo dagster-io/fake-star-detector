@@ -111,7 +111,20 @@ def stargazer_names_df(context: OpExecutionContext, raw_stargazers: list) -> pd.
 )
 def stargazers_with_user_info(context: OpExecutionContext, stargazer_names_df: pd.DataFrame) -> list:
     """
-    3: Retrieve individual detailed profiles of stargazers
+    3: Retrieve individual detailed profiles of stargazers from the GitHub API.
+
+
+    **GitHub token is required.** Instructions:
+    * Go to https://github.com/settings/tokens and generate a personal access token with the `gist` permission.
+    * Create a `.env` file with the following contents:
+        ```
+        MY_GITHUB_TOKEN=ghp_YOUR_TOKEN_HERE
+        ```
+
+        For more details, visit https://docs.dagster.io/guides/dagster/using-environment-variables-and-secrets.
+
+    **GitHub API Docs**:
+    * https://pygithub.readthedocs.io/en/latest/github_objects/NamedUser.html
     """
     allUsersObjs = []
     stargazer_names_df.sort_values(by=["date"], inplace=True)
