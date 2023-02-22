@@ -7,7 +7,12 @@ setup(
         "dagster",
         "dagster-cloud[serverless]",
         "PyGithub",
-        "pandas"
+        "pandas",
+        "matplotlib",
+        "nbconvert",
+        "nbformat",
+        "ipykernel",
+        "jupytext",
     ],
     extras_require={"dev": ["dagit", "pytest"]},
 )
