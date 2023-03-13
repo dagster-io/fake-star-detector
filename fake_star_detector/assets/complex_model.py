@@ -4,7 +4,7 @@
 ### to catch different types of fake accounts.
 ###
 ### **INPUT:**
-## "target_repo" in "../../dbt_project/models/fake_star_detector/stg_all_actions_for_actors_who_starred_repo.sql"
+## "target_repo" in "../../dbt_project/models/complex_detector/stg_all_actions_for_actors_who_starred_repo.sql"
 ### e.g. {% set target_repo = 'frasermarlow/tap-bls' %}
 ###
 ###
