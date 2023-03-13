@@ -2,6 +2,7 @@
 
 This is a Dagster project to analyze the number of fake GitHub stars on any GitHub repository. It is a companion to the blogpost found [on the Dagster blog](https:dagster.io/blog).
 
+
 This project consists two models:
 - [Simpler model](#trying-the-simpler-model-using-data-from-the-github-api): A simple model running “low activity” heuristic. This simple heuristic can detect many (but hardly all) suspected fake accounts that starred the same set of repositories, using nothing but data from the GitHub REST API (via [pygithub](https://github.com/PyGithub/PyGithub)).
 
@@ -11,6 +12,19 @@ This project consists two models:
 <p align="center">
     <img width="600" alt="global-asset-lineage" src="./screenshots/global-asset-lineage.png">
 </p>
+
+## Table of contents
+- [Getting started](#getting-started)
+    - [Install instructions](#install-instructions)
+- [Trying the simpler model using data from the GitHub API](#trying-the-simpler-model-using-data-from-the-github-api)
+    - [Running the model](#running-the-model)
+    - [Explanation of the model](#explanation-of-the-model)
+- [Running the complex model using BigQuery archive data](#running-the-complex-model-using-bigquery-archive-data)
+    - [Prerequisites](#prerequisites)
+    - [Running the model](#running-the-model-1)
+    - [Explanation of the model](#explanation-of-the-model-1)
+
+
 
 ## Getting started
 
