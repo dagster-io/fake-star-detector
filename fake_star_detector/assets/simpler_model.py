@@ -15,7 +15,6 @@ GMTOFFSET = (calendar.timegm(time.localtime()) - calendar.timegm(time.gmtime()))
 
 
 @asset(
-    group_name="stargazers",
     required_resource_keys={"github_api"},
     compute_kind="GitHub API",
     config_schema={
@@ -84,7 +83,7 @@ def raw_stargazers(context: OpExecutionContext) -> list:
     return starlist
 
 
-@asset(group_name="stargazers", compute_kind="pandas")
+@asset(compute_kind="pandas")
 def stargazer_names_df(context: OpExecutionContext, raw_stargazers: list) -> pd.DataFrame:
     """
     2: Create clean list of stargazers
@@ -106,7 +105,6 @@ def stargazer_names_df(context: OpExecutionContext, raw_stargazers: list) -> pd.
 
 
 @asset(
-    group_name="stargazers",
     compute_kind="GitHub API",
     required_resource_keys={"github_api"},
 )
@@ -147,7 +145,7 @@ def stargazers_with_user_info(
     return allUsersObjs
 
 
-@asset(group_name="stargazers", compute_kind="pandas")
+@asset(compute_kind="pandas")
 def classified_stargazers_df(
     context: OpExecutionContext, stargazers_with_user_info: list
 ) -> pd.DataFrame:
@@ -207,7 +205,7 @@ def _validate_star(row: pd.DataFrame) -> int:
         return 0
 
 
-@asset(group_name="stargazers", compute_kind="Notebook")
+@asset(compute_kind="Notebook")
 def real_vs_raw_stars_report(classified_stargazers_df: pd.DataFrame) -> str:
     """
     Jupyter notebook with github star plots.
@@ -251,7 +249,6 @@ plt.show()
 
 
 @asset(
-    group_name="stargazers",
     compute_kind="Gist",
     required_resource_keys={"github_api"},
 )
