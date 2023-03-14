@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: stg_all_actions_for_actors_who_starred_repo
+    description: "Staging: Pull ALL activity for users who starred repo in time period"
+
+  - name: stg_starring_actor_overlap
+    description: "Staging: Summarize activity per actor & cross join to compare to every other actor in set"
+
+  - name: stg_starring_actor_repo_clusters
+    description: "Staging: summarize activity per repo & cross join to compare to every other repo in set"
+
+  - name: stg_pammy_repos
+    description: "Staging: Identify suspicious repos (activity cluster heuristic)"
+
+  - name: starring_actor_summary
+    description: "Table with 1 row per user, summarizing similarity to other users in set. Identify suspicious users (activity cluster heuristic & low activity"
+
+  - name: starring_actor_repo_summary
+    description: "Table with 1 row per repo, summarizing similarity to other repos actors touched"
+
+  - name: all_actions_for_actors_who_starred_repo
+    description: "All activities for users who starred repo in time period"
+
+  - name: fake_star_stats
+    description: "Fake star summary stats (FAKE STAR score)"

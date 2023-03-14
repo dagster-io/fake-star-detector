@@ -9,20 +9,18 @@ import pandas as pd
 from github import InputFileContent
 from nbconvert.preprocessors import ExecutePreprocessor
 
-from dagster import Field, MetadataValue, OpExecutionContext, asset
+from dagster import MetadataValue, OpExecutionContext, asset, Config
 
 GMTOFFSET = (calendar.timegm(time.localtime()) - calendar.timegm(time.gmtime())) / 3600
 
+class StargazerConfig(Config):
+    repo: str = "frasermarlow/tap-bls"
 
 @asset(
-    group_name="stargazers",
-    required_resource_keys={"github_api"},
+    required_resource_keys={"github"},
     compute_kind="GitHub API",
-    config_schema={
-        "repo": Field(str, default_value="frasermarlow/tap-bls"),
-    },
 )
-def raw_stargazers(context: OpExecutionContext) -> list:
+def raw_stargazers(context: OpExecutionContext, config: StargazerConfig) -> list:
     """
     1: Retrieve a raw list of all users who starred the repo from the GitHub API.
 
@@ -40,13 +38,13 @@ def raw_stargazers(context: OpExecutionContext) -> list:
     **GitHub API Docs**:
     * https://pygithub.readthedocs.io/en/latest/github_objects/Stargazer.html
     """
-    repo_name = context.op_config["repo"]
+    repo_name = config.repo
 
     context.log.info(f"Starting extract for {repo_name}")
     do_call = True
     while do_call:
         try:
-            github_api_call = context.resources.github_api.get_repo(
+            github_api_call = context.resources.github.get_client().get_repo(
                 repo_name
             ).get_stargazers_with_dates()
             do_call = False
@@ -84,7 +82,7 @@ def raw_stargazers(context: OpExecutionContext) -> list:
     return starlist
 
 
-@asset(group_name="stargazers", compute_kind="pandas")
+@asset(compute_kind="pandas")
 def stargazer_names_df(context: OpExecutionContext, raw_stargazers: list) -> pd.DataFrame:
     """
     2: Create clean list of stargazers
@@ -106,9 +104,8 @@ def stargazer_names_df(context: OpExecutionContext, raw_stargazers: list) -> pd.
 
 
 @asset(
-    group_name="stargazers",
     compute_kind="GitHub API",
-    required_resource_keys={"github_api"},
+    required_resource_keys={"github"},
 )
 def stargazers_with_user_info(
     context: OpExecutionContext, stargazer_names_df: pd.DataFrame
@@ -147,7 +144,7 @@ def stargazers_with_user_info(
     return allUsersObjs
 
 
-@asset(group_name="stargazers", compute_kind="pandas")
+@asset(compute_kind="pandas")
 def classified_stargazers_df(
     context: OpExecutionContext, stargazers_with_user_info: list
 ) -> pd.DataFrame:
@@ -207,7 +204,7 @@ def _validate_star(row: pd.DataFrame) -> int:
         return 0
 
 
-@asset(group_name="stargazers", compute_kind="Notebook")
+@asset(compute_kind="Notebook")
 def real_vs_raw_stars_report(classified_stargazers_df: pd.DataFrame) -> str:
     """
     Jupyter notebook with github star plots.
@@ -251,9 +248,8 @@ plt.show()
 
 
 @asset(
-    group_name="stargazers",
     compute_kind="Gist",
-    required_resource_keys={"github_api"},
+    required_resource_keys={"github"},
 )
 def github_stars_notebook_gist(context: OpExecutionContext, real_vs_raw_stars_report: str) -> str:
     """
@@ -272,7 +268,7 @@ def github_stars_notebook_gist(context: OpExecutionContext, real_vs_raw_stars_re
     **GitHub API Docs**:
     * https://pygithub.readthedocs.io/en/latest/github_objects/AuthenticatedUser.html?highlight=create_gist#github.AuthenticatedUser.AuthenticatedUser.create_gist
     """
-    gist = context.resources.github_api.get_user().create_gist(
+    gist = context.resources.github.get_client().get_user().create_gist(
         public=False,
         files={
             "github_stars.ipynb": InputFileContent(real_vs_raw_stars_report),
@@ -287,7 +283,7 @@ def github_stars_notebook_gist(context: OpExecutionContext, real_vs_raw_stars_re
 def _see_if_user_exists(context: OpExecutionContext, user: str):
     while True:
         try:
-            userDetails = context.resources.github_api.get_user(
+            userDetails = context.resources.github.get_client().get_user(
                 user
             )  # i.e. NamedUser(login="bfgray3")
             tokensRemaining = int(userDetails._headers["x-ratelimit-remaining"])
