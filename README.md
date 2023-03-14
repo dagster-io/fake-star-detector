@@ -1,6 +1,6 @@
 # fake-star-detector: A Dagster tutorial
 
-This is a Dagster project to analyze the number of fake GitHub stars on any GitHub repository. It is a companion to the blogpost found [on the Dagster blog](https:dagster.io/blog).
+This is a simple Dagster project to analyze the number of fake GitHub stars on any GitHub repository.  It is a companion to the blogpost found [on the Dagster blog](https://dagster.io/blog/fake-stars).
 
 
 This project consists two models:
@@ -30,6 +30,10 @@ This project consists two models:
 
 ### Install instructions
 
+For this tutorial, we assume you have Git installed. Installation details can be found here: https://github.com/git-guides/install-git
+You will also need a GitHub Personal Access token to access the GitHub API.  This can be created in GitHub here: https://github.com/settings/tokens (after logging in to GitHub).  Keep the new access token handy as we will be needing it shortly.
+
+
 Build a virtual environment
 ```commandline
 python3 -m venv venv
@@ -38,11 +42,22 @@ source venv/bin/activate
 Install Dagster and our other dependencies - see https://docs.dagster.io/getting-started/install
 Note for M1 Mac users you may need to use `pip install dagster dagit --find-links=https://github.com/dagster-io/build-grpcio/wiki/Wheels`
 
+Next you will need to pull a copy of this repository onto your local machine, go into the top level of the cloned repository and run the install command:
+
 ```commandline
+git clone https://github.com/dagster-io/fake-star-detector.git
+cd fake-star-detector
 pip install -e ".[dev]"
 ```
 
-Next, create a `.env` file and add the required environment variables:
+If you have previously installed Dagster on your system, you may encounter the error 
+
+Error: No such command 'dev'.
+
+If this is the case, your system is likely trying to access the Dagster install outside of your vent. Try running the bash command `rehash` which will Recompute the internal hash table for the PATH variable, then repeat the `Dagster dev` command.
+
+Next, create a `.env` file at the root of the repository you just cloned and add your GitHub access token as a variable variables:
+
 ```
 GITHUB_ACCESS_TOKEN=<<GITHUB_ACCESS_TOKEN>>
 ```
