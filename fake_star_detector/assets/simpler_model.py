@@ -28,7 +28,7 @@ def raw_stargazers(context: OpExecutionContext, config: StargazerConfig) -> list
     * Go to https://github.com/settings/tokens and generate a personal access token with the `gist` permission.
     * Create a `.env` file with the following contents:
         ```
-        MY_GITHUB_TOKEN=ghp_YOUR_TOKEN_HERE
+        GITHUB_ACCESS_TOKEN=ghp_YOUR_TOKEN_HERE
         ```
         For more details, visit https://docs.dagster.io/guides/dagster/using-environment-variables-and-secrets.
 
@@ -118,7 +118,7 @@ def stargazers_with_user_info(
     * Go to https://github.com/settings/tokens and generate a personal access token with the `gist` permission.
     * Create a `.env` file with the following contents:
         ```
-        MY_GITHUB_TOKEN=ghp_YOUR_TOKEN_HERE
+        GITHUB_ACCESS_TOKEN=ghp_YOUR_TOKEN_HERE
         ```
 
         For more details, visit https://docs.dagster.io/guides/dagster/using-environment-variables-and-secrets.
@@ -134,13 +134,18 @@ def stargazers_with_user_info(
             "  So this might take a while."
         )
 
-    for _, stargazer in stargazer_names_df.iterrows():
+    for i, stargazer in stargazer_names_df.iterrows():
         usrObj = _see_if_user_exists(context, stargazer["user"])
         if usrObj:
             setattr(usrObj, "starred_at", stargazer["date"])
             allUsersObjs.append(usrObj)
         else:
             continue
+
+        if i % 100 == 0:
+            context.log.debug(
+                f"Completed {i} of {len(stargazer_names_df.index)} stargazers."
+            )
     return allUsersObjs
 
 
@@ -259,7 +264,7 @@ def github_stars_notebook_gist(context: OpExecutionContext, real_vs_raw_stars_re
     * Go to https://github.com/settings/tokens and generate a personal access token with the `gist` permission.
     * Create a `.env` file with the following contents:
         ```
-        MY_GITHUB_TOKEN=ghp_YOUR_TOKEN_HERE
+        GITHUB_ACCESS_TOKEN=ghp_YOUR_TOKEN_HERE
         ```
 
         For more details, visit https://docs.dagster.io/guides/dagster/using-environment-variables-and-secrets.
@@ -287,7 +292,7 @@ def _see_if_user_exists(context: OpExecutionContext, user: str):
                 user
             )  # i.e. NamedUser(login="bfgray3")
             tokensRemaining = int(userDetails._headers["x-ratelimit-remaining"])
-            if tokensRemaining % 500 == 0:
+            if tokensRemaining % 100 == 0:
                 context.log.info(f"{tokensRemaining} tokens left")
         except Exception as e:
             response = _handle_exception(context, e)
@@ -352,13 +357,6 @@ def _handle_exception(context: OpExecutionContext, e: Exception):
         )
         time.sleep(_get_retry_at(e)[1])
         context.log.info("done waiting.")
-        return True
-    elif e.__class__.__name__ == "ConnectionError":  # API not connecting
-        context.log.info(
-            "I cannot connect to the API. Please check your network connection.  Pausing for 10"
-            " mins."
-        )
-        time.sleep(600)
         return True
     elif e.__class__.__name__ == "GithubException":
         context.log.info(f"I ran into a server error - I will rety in one minute | Error: {e}")

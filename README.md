@@ -1,9 +1,9 @@
 # fake-star-detector: A Dagster tutorial
 
-This is a simple Dagster project to analyze the number of fake GitHub stars on any GitHub repository.  It is a companion to the blogpost found [on the Dagster blog](https://dagster.io/blog/fake-stars).
+This is a simple Dagster project to analyze the number of fake GitHub stars on any GitHub repository.  It is a companion to the blog post found [on the Dagster blog](https://dagster.io/blog/fake-stars).
 
 
-This project consists two models:
+This project consists of two models:
 - [Simpler model](#trying-the-simpler-model-using-data-from-the-github-api): A simple model running “low activity” heuristic. This simple heuristic can detect many (but hardly all) suspected fake accounts that starred the same set of repositories, using nothing but data from the GitHub REST API (via [pygithub](https://github.com/PyGithub/PyGithub)).
 
 - [Complex detector](#running-the-complex-model-using-bigquery-archive-data): An alternative detection model which runs a sophisticated clustering algorithm as well as the heuristic, using the public [GH Archive](https://www.gharchive.org) available in Bigquery. This model is written in SQL and uses [dbt](https://github.com/dbt-labs/dbt-core) alongside Dagster.
@@ -15,52 +15,60 @@ This project consists two models:
 
 ## Table of contents
 - [Getting started](#getting-started)
-    - [Install instructions](#install-instructions)
+  - [Install instructions](#install-instructions)
+    - [Getting GitHub Access Token for the simpler model](#getting-github-access-token-for-the-simpler-model)
+    - [Creating Google Service Account for the complex model](#creating-google-service-account-for-the-complex-model)
+  - [Setting up your local environment](#setting-up-your-local-environment)
+    - [Cloning the repo](#cloning-the-repo)
+  - [Building a virtual environment](#building-a-virtual-environment)
+  - [Running Dagster locally](#running-dagster-locally)
 - [Trying the simpler model using data from the GitHub API](#trying-the-simpler-model-using-data-from-the-github-api)
-    - [Running the model](#running-the-model)
-    - [Explanation of the model](#explanation-of-the-model)
+  - [Setting up the environment variables](#setting-up-the-environment-variables)
+  - [Running the model](#running-the-model)
+  - [Explanation of the model](#explanation-of-the-model)
 - [Running the complex model using BigQuery archive data](#running-the-complex-model-using-bigquery-archive-data)
-    - [Prerequisites](#prerequisites)
-    - [Running the model](#running-the-model-1)
-    - [Explanation of the model](#explanation-of-the-model-1)
-
-
+  - [Setting up the environment variables](#setting-up-the-environment-variables-1)
+  - [Running the model](#running-the-model-1)
+  - [Explanation of the model](#explanation-of-the-model-1)
 
 ## Getting started
 
 ### Install instructions
 
-For this tutorial, we assume you have Git installed. Installation details can be found here: https://github.com/git-guides/install-git
-You will also need a GitHub Personal Access token to access the GitHub API.  This can be created in GitHub here: https://github.com/settings/tokens (after logging in to GitHub).  Keep the new access token handy as we will be needing it shortly.
+For this tutorial, we assume you have Git installed. Installation details can be found here: https://github.com/git-guides/install-git.
+
+#### Getting GitHub Access Token for the simpler model
+For running the [simpler model](#trying-the-simpler-model-using-data-from-the-github-api), you will also need a GitHub Personal Access token to access the GitHub API. This can be created in GitHub here: https://github.com/settings/tokens (after logging in to GitHub).  Keep the new access token handy as we will be needing it shortly.
+
+#### Creating Google Service Account for the complex model
+
+In order to run the complex model which uses BigQuery public archive data, you will need to have a BigQuery account to run the dbt models. You can sign up for a free account [here](https://cloud.google.com/bigquery). Check out [Create a Google Service Account](https://dagster.io/blog/dagster-google-sheets-tutorial#create-a-google-service-account) to learn how to create a service account and download the JSON key file. This also requires BigQuery API enabled in your service account.
 
 
-Build a virtual environment
-```commandline
-python3 -m venv venv
-source venv/bin/activate
-```
-Install Dagster and our other dependencies - see https://docs.dagster.io/getting-started/install
-Note for M1 Mac users you may need to use `pip install dagster dagit --find-links=https://github.com/dagster-io/build-grpcio/wiki/Wheels`
+### Setting up your local environment
 
-Next you will need to pull a copy of this repository onto your local machine, go into the top level of the cloned repository and run the install command:
+#### Cloning the repo
+You will need to pull a copy of this repository onto your local machine, go into the top level of the cloned repository and run the install command:
 
 ```commandline
 git clone https://github.com/dagster-io/fake-star-detector.git
 cd fake-star-detector
+```
+
+### Building a virtual environment
+
+Install Dagster and our other dependencies - see https://docs.dagster.io/getting-started/install
+
+```commandline
+python3 -m venv venv
+source venv/bin/activate
+
 pip install -e ".[dev]"
 ```
+*Note for M1 Mac users you may need to use `pip install dagster dagit --find-links=https://github.com/dagster-io/build-grpcio/wiki/Wheels`*
 
-If you have previously installed Dagster on your system, you may encounter the error 
+### Running Dagster locally
 
-Error: No such command 'dev'.
-
-If this is the case, your system is likely trying to access the Dagster install outside of your vent. Try running the bash command `rehash` which will Recompute the internal hash table for the PATH variable, then repeat the `Dagster dev` command.
-
-Next, create a `.env` file at the root of the repository you just cloned and add your GitHub access token as a variable variables:
-
-```
-GITHUB_ACCESS_TOKEN=<<GITHUB_ACCESS_TOKEN>>
-```
 
 Start the Dagster UI web server:
 
@@ -70,14 +78,38 @@ dagster dev
 
 Open http://localhost:3000 with your browser to see the project.
 
+*Note: If you have previously installed Dagster on your system, you may encounter the error `Error: No such command 'dev'.`. If this is the case, your system is likely trying to access the Dagster install outside of your vent. Try running the bash command `rehash` which will Recompute the internal hash table for the PATH variable, then repeat the `dagster dev` command.*
+
+Next, you can run the detection model(s) of your own choice.
+
+- Simple, more complete history, and no cost: [Simpler model](#trying-the-simpler-model-using-data-from-the-github-api) -- This model uses data from the GitHub API to detect fake stars. You may hit GitHub API limit depending on how many activities the repository you choose to analyze.
+- Comprehensive, but shorter period at free-tier: [Complex model](#running-the-complex-model-using-bigquery-archive-data): This model uses the public [GH Archive](https://www.gharchive.org) available in Bigquery. You can specify a longer time span and a larger repository to analyze, but it may get expensive as you scan more data in BigQuery.
+
+
 ## Trying the simpler model using data from the GitHub API
+### Setting up the environment variables
+
+This model requires GitHub Access Token to access the GitHub API. Refer to the instructions [above](#getting-github-access-token-for-the-simpler-model) for how to obtain your own token.
+
+Then, create a `.env` file at the root of the repository you just cloned and add your GitHub access token as a variable:
+
+```
+GITHUB_ACCESS_TOKEN=<<GITHUB_ACCESS_TOKEN>>
+```
+
+### Running the model
+
 <p align="center">
     <img width="600" alt="simpler-model" src="./screenshots/simpler-model.png">
 </p>
 
-### Running the model
+Navigate to `simpler_model` from the left nav in the UI. This defaults to analyze a small repository `frasermarlow/tap-bls`. You can click "Materialize all" to kick off the model and check out the result. At the end of the job, it will output a Gist summarizing the analysis, such as [this URL](https://gist.github.com/yuhan/3ff6b81e9599cadf51afd6e485927f22). You can find the link in the compute log:
 
-You can Shift+click "Materialize all" on the asset graph page to specify the repository you want to analyze in the configuration, such as:
+<p align="center">
+    <img width="600" alt="simpler-model-gist-link" src="./screenshots/simpler-model-gist-link.png">
+</p>
+
+You can also specify a different repo by Shift+clicking "Materialize all" on the asset graph page to specify it in the configuration, such as:
 
 ```yaml
 ops:
@@ -116,9 +148,10 @@ Currently, the pipeline will simply return a result in the Dagster UI as in `INF
 
 This model is written in SQL and uses dbt. You can find the dbt project in the [`dbt_project`](./dbt_project/) directory, and the dbt models in the [`dbt_project/models/complex_detector/`](./dbt_project/models/complex_detector/) directory.
 
-### Prerequisites
+### Setting up the environment variables
 
-You will need to have a BigQuery account to run the dbt models. You can sign up for a free account [here](https://cloud.google.com/bigquery). Check out [Create a Google Service Account](https://dagster.io/blog/dagster-google-sheets-tutorial#create-a-google-service-account) to learn how to create a service account and download the JSON key file. This also requires BigQuery API enabled in your service account.
+
+This model requires a BigQuery account and Google Search Account with BigQuery API enabled to access the source data. Refer to [the above](#creating-google-service-account-for-the-complex-model) for instructions.
 
 Next, you will need to add the credentials to your environment. You can do this by adding the following to your `.env` file:
 
@@ -132,26 +165,31 @@ DBT_BIGQUERY_LOCATION='US' # or your desired location
 
 ### Running the model
 
-Edit the "target_repo" in [`./dbt_project/models/fake_star_detector/stg_all_actions_for_actors_who_starred_repo.sql`](./dbt_project/models/complex_detector/stg_all_actions_for_actors_who_starred_repo.sql)
-```
-{% set target_repo = 'frasermarlow/tap-bls' %}
-```
+Navigate to `complex_detector` in the UI. Click "Materialize all" to kick off the complex model. This defaults to analyze `frasermarlow/tap-bls`.
 
-Next, click "Materialize" to kick off the complex model. In the end, you'll get a few BigQuery tables with the final result:
+<p align="center">
+    <img width="600" alt="tables-in-bigquery" src="./screenshots/complex-model.png">
+</p>
+
+In the end, you'll get a few BigQuery tables with the final result:
 
 Tables and views in BigQuery           |  Final result
 :-------------------------:|:-------------------------:
 ![tables-in-bigquery](./screenshots/tables-in-bigquery.png)  |  ![stat-result-in-bigquery](./screenshots/stat-result-in-bigquery.png)
 
 
+
+To check out for another repository, edit the "target_repo" in [`./dbt_project/models/fake_star_detector/stg_all_actions_for_actors_who_starred_repo.sql`](./dbt_project/models/complex_detector/stg_all_actions_for_actors_who_starred_repo.sql):
+```
+{% set target_repo = 'frasermarlow/tap-bls' %}
+```
+
+
+
 ### Explanation of the model
 
 This loads a dbt project which uses GitHub Archive data to identify suspicious users who starred the given repository, and estimates a FAKE STAR score for that repository using two separate heuristics
 to catch different types of fake accounts.
-
-<p align="center">
-    <img width="600" alt="tables-in-bigquery" src="./screenshots/complex-model.png">
-</p>
 
 The dbt project materializes 4 BigQuery tables with estimated FAKE STAR score, and a few staging views:
 1. `stg_all_actions_for_actors_who_starred_repo`: all activity for users who starred repo in the given time period
