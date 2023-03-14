@@ -129,12 +129,11 @@ Then, click "Materialize" to kick off the simple model. In the end, you'll get a
 
 This asset group is a Dagster project and involves 6 assets:
 
-1) Asset `raw_stargazers`: We call the GitHub API and retrieve a list of users who have starred the repo.
-2) Asset `stargazer_names_df`: We turn the GitHub response into a Pandas DataFrame.
-3) Asset `stargazers_with_user_info`: We look up each user in turn and pull their detailed profile from the GitHub API.
-4) Asset `classified_stargazers_df`: We analyze each profile and match it against our heuristic to determine if they are fake or not, and output a Pandas DataFrame.
-5) Asset `real_vs_raw_stars_report`: We calculate the percentage of fake stars and output a report in raw Jupyter Notebook format.
-6) Asset `github_stars_notebook_gist`: We convert the raw Jupyter Notebook into a Gist and output the URL to the Gist.
+1) Asset `stargazers`: We call the GitHub API and retrieve a list of users who have starred the repo, and then turn the response into a Pandas DataFrame.
+2) Asset `stargazers_with_user_info`: We look up each user in turn and pull their detailed profile from the GitHub API.
+3) Asset `classified_stargazers_df`: We analyze each profile and match it against our heuristic to determine if they are fake or not, and output a Pandas DataFrame.
+4) Asset `real_vs_raw_stars_report`: We calculate the percentage of fake stars and output a report in raw Jupyter Notebook format.
+5) Asset `github_stars_notebook_gist`: We convert the raw Jupyter Notebook into a Gist and output the URL to the Gist.
 
 In addition to the above, we have a few helper functions:
 
