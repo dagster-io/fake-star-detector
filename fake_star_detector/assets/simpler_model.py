@@ -20,9 +20,10 @@ class StargazerConfig(Config):
     required_resource_keys={"github"},
     compute_kind="GitHub API",
 )
-def raw_stargazers(context: OpExecutionContext, config: StargazerConfig) -> list:
+def stargazers(context: OpExecutionContext, config: StargazerConfig) -> pd.DataFrame:
     """
-    1: Retrieve a raw list of all users who starred the repo from the GitHub API.
+    Retrieve a raw list of all users who starred the repo from the GitHub API, and convert to
+    a Pandas DataFrame.
 
     **GitHub token is required.** Instructions:
     * Go to https://github.com/settings/tokens and generate a personal access token with the `gist` permission.
@@ -44,7 +45,7 @@ def raw_stargazers(context: OpExecutionContext, config: StargazerConfig) -> list
     do_call = True
     while do_call:
         try:
-            github_api_call = context.resources.github.get_client().get_repo(
+            response = context.resources.github.get_client().get_repo(
                 repo_name
             ).get_stargazers_with_dates()
             do_call = False
@@ -61,7 +62,7 @@ def raw_stargazers(context: OpExecutionContext, config: StargazerConfig) -> list
                 context.log.error(f"An error was encountered: {e}")
                 raise e
 
-    starlist = list(github_api_call)
+    starlist = list(response)
 
     context.log.info(
         "Completed extract for {name} with {num_total} Stargazers. | Cost {num_calls_spent} api"
@@ -76,29 +77,20 @@ def raw_stargazers(context: OpExecutionContext, config: StargazerConfig) -> list
         )
     )
 
-    # Log metadata for easy debugging
-    context.add_output_metadata({"raw_count": len(starlist)})
-
-    return starlist
-
-
-@asset(compute_kind="pandas")
-def stargazer_names_df(context: OpExecutionContext, raw_stargazers: list) -> pd.DataFrame:
-    """
-    2: Create clean list of stargazers
-    """
     sg_df = pd.DataFrame(
         [
             {
                 "user": stargazer.user.login,
                 "date": stargazer.starred_at.date(),
             }
-            for stargazer in raw_stargazers
+            for stargazer in starlist
         ]
     )
-    context.log.info(f"Total stargazers found: {len(sg_df.index)}")
     # Log metadata for easy debugging
-    context.add_output_metadata({"preview": MetadataValue.md(sg_df.head().to_markdown())})
+    context.add_output_metadata({
+        "count": len(sg_df.index),
+        "preview": MetadataValue.md(sg_df.head().to_markdown()),
+    })
 
     return sg_df
 
@@ -108,10 +100,11 @@ def stargazer_names_df(context: OpExecutionContext, raw_stargazers: list) -> pd.
     required_resource_keys={"github"},
 )
 def stargazers_with_user_info(
-    context: OpExecutionContext, stargazer_names_df: pd.DataFrame
-) -> list:
+    context: OpExecutionContext, stargazers: pd.DataFrame
+) -> pd.DataFrame:
     """
-    3: Retrieve individual detailed profiles of stargazers from the GitHub API.
+    Retrieve individual detailed profiles of stargazers from the GitHub API, and convert to a
+    Pandas DataFrame.
 
 
     **GitHub token is required.** Instructions:
@@ -127,14 +120,14 @@ def stargazers_with_user_info(
     * https://pygithub.readthedocs.io/en/latest/github_objects/NamedUser.html
     """
     allUsersObjs = []
-    stargazer_names_df.sort_values(by=["date"], inplace=True)
-    if len(stargazer_names_df.index) > 4995:
+    stargazers.sort_values(by=["date"], inplace=True)
+    if len(stargazers.index) > 4995:
         context.log.info(
-            f"The list is {len(stargazer_names_df)} items long, which exceeds the API limit."
+            f"The list is {len(stargazers)} items long, which exceeds the API limit."
             "  So this might take a while."
         )
 
-    for i, stargazer in stargazer_names_df.iterrows():
+    for i, stargazer in stargazers.iterrows():
         usrObj = _see_if_user_exists(context, stargazer["user"])
         if usrObj:
             setattr(usrObj, "starred_at", stargazer["date"])
@@ -144,18 +137,9 @@ def stargazers_with_user_info(
 
         if i % 100 == 0:
             context.log.debug(
-                f"Completed {i} of {len(stargazer_names_df.index)} stargazers."
+                f"Completed {i} of {len(stargazers.index)} stargazers."
             )
-    return allUsersObjs
 
-
-@asset(compute_kind="pandas")
-def classified_stargazers_df(
-    context: OpExecutionContext, stargazers_with_user_info: list
-) -> pd.DataFrame:
-    """
-    4: Buildout dataframe of valuable attributes for these stargazers and analyze.
-    """
     df = pd.DataFrame(
         [
             {
@@ -181,12 +165,34 @@ def classified_stargazers_df(
                 "url": user_obj.url,
                 "user_url": "https://github.com/" + user_obj.login,
             }
-            for user_obj in stargazers_with_user_info
+            for user_obj in allUsersObjs
         ]
     )
-    df["matches_fake_heuristic"] = df.apply(_validate_star, axis=1)
-    context.add_output_metadata({"preview": MetadataValue.md(df.head().to_markdown())})
+
+    # Log metadata for easy debugging
+    context.add_output_metadata({
+        "preview": MetadataValue.md(df.head().to_markdown()),
+    })
     return df
+
+
+@asset(compute_kind="pandas")
+def classified_stargazers_df(
+    context: OpExecutionContext, stargazers_with_user_info: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Buildout dataframe of valuable attributes for these stargazers and analyze.
+    """
+    stargazers_with_user_info["matches_fake_heuristic"] = stargazers_with_user_info.apply(
+        _validate_star,
+        axis=1,
+    )
+
+    # Log metadata for easy debugging
+    context.add_output_metadata({
+        "preview": MetadataValue.md(stargazers_with_user_info.head().to_markdown()),
+    })
+    return stargazers_with_user_info
 
 
 def _validate_star(row: pd.DataFrame) -> int:
