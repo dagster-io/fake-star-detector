@@ -1,6 +1,6 @@
 # fake-star-detector: A Dagster tutorial
 
-This is a simple Dagster project to analyze the number of fake GitHub stars on any GitHub repository.  It is a companion to the blogpost found [on the Dagster blog](https:dagster.io/blog/fake-stars).
+This is a simple Dagster project to analyze the number of fake GitHub stars on any GitHub repository.  It is a companion to the blogpost found [on the Dagster blog](https://dagster.io/blog/fake-stars).
 
 
 This project consists two models:
