@@ -30,7 +30,7 @@ If you have previously installed Dagster on your system, you may encounter the e
 
 Error: No such command 'dev'.
 
-If this is the case, your system is likely trying to access the Dagster install outside of your vent.  Tru running the bash command `rehash` which will Recompute the internal hash table for the PATH variable, then repeat the `Dagster dev` command.
+If this is the case, your system is likely trying to access the Dagster install outside of your vent. Try running the bash command `rehash` which will Recompute the internal hash table for the PATH variable, then repeat the `Dagster dev` command.
 
 Next, create a `.env` file at the root of the repository you just cloned and add your GitHub access token as a variable variables:
 
