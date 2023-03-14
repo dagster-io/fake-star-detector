@@ -1,0 +1,4 @@
+locations:
+  - location_name: fake_star_detector
+    code_source:
+      package_name: fake_star_detector
