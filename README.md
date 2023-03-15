@@ -41,7 +41,9 @@ This project consists of two models:
 For this tutorial, we assume you have Git installed. Installation details can be found here: https://github.com/git-guides/install-git.
 
 #### Getting GitHub Access Token for the simpler model
-For running the [simpler model](#trying-the-simpler-model-using-data-from-the-github-api), you will also need a GitHub Personal Access token to access the GitHub API. This can be created in GitHub here: https://github.com/settings/tokens (after logging in to GitHub).  Keep the new access token handy as we will be needing it shortly.
+For running the [simpler model](#trying-the-simpler-model-using-data-from-the-github-api), you will also need a GitHub Personal Access token to access the GitHub API. This can be created in GitHub here: https://github.com/settings/tokens (after logging in to GitHub). Keep the new access token handy as we will be needing it shortly.
+
+Note: we'll need `gist` scope because we're going to create a Gist to be the final report in the end.
 
 #### Creating Google Service Account for the complex model
 
