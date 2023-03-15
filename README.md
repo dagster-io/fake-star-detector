@@ -78,7 +78,7 @@ dagster dev
 
 Open http://localhost:3000 with your browser to see the project.
 
-*Note: If you have previously installed Dagster on your system, you may encounter the error `Error: No such command 'dev'.`. If this is the case, your system is likely trying to access the Dagster install outside of your vent. Try running the bash command `rehash` which will Recompute the internal hash table for the PATH variable, then repeat the `dagster dev` command.*
+*Note: If you have previously installed Dagster on your system, you may encounter the error `Error: No such command 'dev'.`. If this is the case, your system is likely trying to access the Dagster install outside of your venv. Try running the bash command `rehash` which will Recompute the internal hash table for the PATH variable, then repeat the `dagster dev` command.*
 
 Next, you can run the detection model(s) of your own choice.
 
