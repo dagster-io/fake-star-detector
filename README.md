@@ -14,6 +14,7 @@ This project consists of two models:
 </p>
 
 ## Table of contents
+- [Table of contents](#table-of-contents)
 - [Getting started](#getting-started)
   - [Install instructions](#install-instructions)
     - [Getting GitHub Access Token for the simpler model](#getting-github-access-token-for-the-simpler-model)
@@ -25,11 +26,13 @@ This project consists of two models:
 - [Trying the simpler model using data from the GitHub API](#trying-the-simpler-model-using-data-from-the-github-api)
   - [Setting up the environment variables](#setting-up-the-environment-variables)
   - [Running the model](#running-the-model)
+    - [Troubleshooting](#troubleshooting)
   - [Explanation of the model](#explanation-of-the-model)
 - [Running the complex model using BigQuery archive data](#running-the-complex-model-using-bigquery-archive-data)
   - [Setting up the environment variables](#setting-up-the-environment-variables-1)
   - [Running the model](#running-the-model-1)
   - [Explanation of the model](#explanation-of-the-model-1)
+
 
 ## Getting started
 
@@ -118,12 +121,28 @@ ops:
             repo: <insert name of the repo to analyze>
 ```
 
-
 Shift+click "Materialize all"            |  Config editor
 :-------------------------:|:-------------------------:
 ![simpler-model-shift-click](./screenshots/simpler-model-shift-click.png)  |  ![simpler-model-config](./screenshots/simpler-model-config.png)
 
 Then, click "Materialize" to kick off the simple model. In the end, you'll get a GitHub Gist with the results.
+
+
+#### Troubleshooting
+
+If you are using the default Dagster storage backed by SQLite, you may encounter an error as:
+```
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unable to open database file
+```
+
+To get your pipeline successfully running, you can Shift+click "Materialize all" on the asset graph page and add the following configuration. This will turn off the default multiprocessing execution.
+
+```yaml
+execution:
+  config:
+    in_process: null
+```
+
 
 ### Explanation of the model
 
