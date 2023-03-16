@@ -118,7 +118,7 @@ You can also specify a different repo by Shift+clicking "Materialize all" on the
 
 ```yaml
 ops:
-    raw_stargazers:
+    stargazers:
         config:
             repo: <insert name of the repo to analyze>
 ```
