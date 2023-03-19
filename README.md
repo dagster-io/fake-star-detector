@@ -23,6 +23,7 @@ This project consists of two models:
     - [Cloning the repo](#cloning-the-repo)
   - [Building a virtual environment](#building-a-virtual-environment)
   - [Running Dagster locally](#running-dagster-locally)
+  - [Running Dagster locally using docker](#running-dagster-locally-using-docker)
 - [Trying the simpler model using data from the GitHub API](#trying-the-simpler-model-using-data-from-the-github-api)
   - [Setting up the environment variables](#setting-up-the-environment-variables)
   - [Running the model](#running-the-model)
@@ -90,17 +91,32 @@ Next, you can run the detection model(s) of your own choice.
 - Simple, more complete history, and no cost: [Simpler model](#trying-the-simpler-model-using-data-from-the-github-api) -- This model uses data from the GitHub API to detect fake stars. You may hit GitHub API limit depending on how many activities the repository you choose to analyze.
 - Comprehensive, but shorter period at free-tier: [Complex model](#running-the-complex-model-using-bigquery-archive-data): This model uses the public [GH Archive](https://www.gharchive.org) available in Bigquery. You can specify a longer time span and a larger repository to analyze, but it may get expensive as you scan more data in BigQuery.
 
+### Running Dagster locally using docker
+
+  You can use the below steps to bring up dagster-dev instance using a local docker image 
+
+  - install Docker from [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+  - in the file [docker-compose.yaml](docker-compose.yaml), set the value of your github token under environment. Refer to the instructions [above](#getting-github-access-token-for-the-simpler-model) for how to obtain your own token.
+
+        environment:
+        - GITHUB_ACCESS_TOKEN=<<GITHUB_ACCESS_TOKEN>>
+
+  - run the command `docker compose up -d --build`
+  - browse the link http://localhost:3000 to see the project
 
 ## Trying the simpler model using data from the GitHub API
-### Setting up the environment variables
-
-This model requires GitHub Access Token to access the GitHub API. Refer to the instructions [above](#getting-github-access-token-for-the-simpler-model) for how to obtain your own token.
+### Setting up the environment variables 
+This model requires GitHub Access Token to access the GitHub API. Refer to the instructions [above](#getting-github-access-token-for-the-simpler-model) for how to obtain your own token. (_If you are using Docker you can skip this step as you should have already set the token in earlier [step](#running-dagster-locally-using-docker)_)
 
 Then, create a `.env` file at the root of the repository you just cloned and add your GitHub access token as a variable:
 
 ```
 GITHUB_ACCESS_TOKEN=<<GITHUB_ACCESS_TOKEN>>
 ```
+
+
+
+
 
 ### Running the model
 
