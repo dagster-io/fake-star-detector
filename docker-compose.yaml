@@ -1,0 +1,10 @@
+services:
+  dagster-dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: dagster-dev
+    ports:
+      - 3000:3000
+    environment:
+      - GITHUB_ACCESS_TOKEN=your_github_access_token
