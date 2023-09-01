@@ -50,7 +50,7 @@ def stargazers(context: OpExecutionContext, config: StargazerConfig) -> pd.DataF
             ).get_stargazers_with_dates()
             do_call = False
         except Exception as e:
-            response = _handle_exception(e)
+            response = _handle_exception(context, e)
             if response:
                 do_call = True
             elif response is None:
@@ -196,7 +196,7 @@ def classified_stargazers_df(
 
 
 def _validate_star(row: pd.DataFrame) -> int:
-    # Checks this profile against the criteria gleaned form the 100 fake profiles.
+    # Checks this profile against the criteria gleaned from the 100 fake profiles.
     # Returns True if this matches a fake profile.
     if (
         (row["followers"] < 2)
@@ -301,7 +301,7 @@ def _see_if_user_exists(context: OpExecutionContext, user: str):
             if tokensRemaining % 100 == 0:
                 context.log.info(f"{tokensRemaining} tokens left")
         except Exception as e:
-            response = _handle_exception(e)
+            response = _handle_exception(context, e)
             if response:
                 continue
             elif response is None:
@@ -349,7 +349,7 @@ def _get_retry_at(e):
             ]
 
 
-def _handle_exception(e: Exception):
+def _handle_exception(context: OpExecutionContext, e: Exception):
     """
     Given a GitHub error, wait until the reset time or otherwise return the handling pattern.
     Note this is used in a 'while True' loop so 'continue' restarts the loop iteration, whereas 'False' movest to the next item in the 'for' loop.
@@ -357,47 +357,47 @@ def _handle_exception(e: Exception):
     :return: True for 'continue', False for 'False', None for 'unkown'
     """
     if e.__class__.__name__ == "RateLimitExceededException":  # API rate limit reached
-        print(_get_retry_at(e)[0])
-        print(
+        context.log.debug(_get_retry_at(e)[0])
+        context.log.debug(
             f"I am going to wait {round(_get_retry_at(e)[1] / 60)} minutes, then continue."
         )
         time.sleep(_get_retry_at(e)[1])
-        print("done waiting.")
+        context.log.debug("done waiting.")
         return True
     elif e.__class__.__name__ == "GithubException":
-        print(f"I ran into a server error - I will rety in one minute | Error: {e}")
+        context.log.debug(f"I ran into a server error - I will rety in one minute | Error: {e}")
         time.sleep(60)
         return True
     elif e.__class__.__name__ == "UnknownObjectException":  # User not found
-        print(
+        context.log.debug(
             f"The item requested does not exist on GitHub - I will skip this one | Error: {e}"
         )
         return None
     elif e.__class__.__name__ == "BadCredentialsException":
-        print(f"Your GitHub API credentials failed | Error: {e}")
+        context.log.debug(f"Your GitHub API credentials failed | Error: {e}")
         time.sleep(300)
         return False
     elif e.__class__.__name__ == "TwoFactorException":
-        print(
+        context.log.debug(
             f"Github requires a onetime password for two-factor authentication | Error: {e}"
         )
         time.sleep(600)
         return False
     elif e.__class__.__name__ == "BadUserAgentException":
-        print(f"The GitHub raised a bad user agent header error. | Error: {e}")
+        context.log.debug(f"The GitHub raised a bad user agent header error. | Error: {e}")
         time.sleep(300)
         return False
     elif e.__class__.__name__ == "BadAttributeException":
-        print(f"Github returned an attribute with the wrong type. | Error: {e}")
+        context.log.debug(f"Github returned an attribute with the wrong type. | Error: {e}")
         time.sleep(300)
         return False
     elif e.__class__.__name__ == "IncompletableObject":
-        print(
+        context.log.debug(
             "Cannot request an object from Github because the data returned did not include a URL."
             f" | Error: {e}"
         )
         time.sleep(300)
         return False
     else:
-        print(f"I ran into an error - I will skip this one | Error: {e}")
+        context.log.debug(f"I ran into an error - I will skip this one | Error: {e}")
         return False
