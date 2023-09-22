@@ -203,7 +203,7 @@ def _validate_star(row: pd.DataFrame) -> int:
         and (row["following"] < 2)
         and (row["public_gists"] == 0)
         and (row["public_repos"] < 5)
-        and (row["created_at"] > datetime.date(2022, 1, 1))
+        and (row["created_at"] > pd.Timestamp(datetime.date(2022, 1, 1)))
         and (row["email"] is None)
         and (row["bio"] is None)
         and (not row["blog"])
