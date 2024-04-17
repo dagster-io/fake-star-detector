@@ -6,15 +6,16 @@ import time
 import jupytext
 import nbformat
 import pandas as pd
+from dagster import Config, MetadataValue, OpExecutionContext, asset
 from github import InputFileContent
 from nbconvert.preprocessors import ExecutePreprocessor
 
-from dagster import MetadataValue, OpExecutionContext, asset, Config
-
 GMTOFFSET = (calendar.timegm(time.localtime()) - calendar.timegm(time.gmtime())) / 3600
+
 
 class StargazerConfig(Config):
     repo: str = "frasermarlow/tap-bls"
+
 
 @asset(
     required_resource_keys={"github"},
@@ -45,18 +46,14 @@ def stargazers(context: OpExecutionContext, config: StargazerConfig) -> pd.DataF
     do_call = True
     while do_call:
         try:
-            response = context.resources.github.get_client().get_repo(
-                repo_name
-            ).get_stargazers_with_dates()
+            response = context.resources.github.get_client().get_repo(repo_name).get_stargazers_with_dates()
             do_call = False
         except Exception as e:
             response = _handle_exception(e)
             if response:
                 do_call = True
             elif response is None:
-                context.log.error(
-                    f"That repository cannot be found.  Please check that {repo_name} is correct."
-                )
+                context.log.error(f"That repository cannot be found.  Please check that {repo_name} is correct.")
                 raise e
             else:
                 context.log.error(f"An error was encountered: {e}")
@@ -70,8 +67,7 @@ def stargazers(context: OpExecutionContext, config: StargazerConfig) -> pd.DataF
             name=repo_name,
             num_total=len(starlist),
             num_calls_spent=(
-                int(starlist[0]._headers["x-ratelimit-remaining"])
-                - int(starlist[-1]._headers["x-ratelimit-remaining"])
+                int(starlist[0]._headers["x-ratelimit-remaining"]) - int(starlist[-1]._headers["x-ratelimit-remaining"])
             ),
             num_calls_left=int(starlist[-1]._headers["x-ratelimit-remaining"]),
         )
@@ -87,10 +83,12 @@ def stargazers(context: OpExecutionContext, config: StargazerConfig) -> pd.DataF
         ]
     )
     # Log metadata for easy debugging
-    context.add_output_metadata({
-        "count": len(sg_df.index),
-        "preview": MetadataValue.md(sg_df.head().to_markdown()),
-    })
+    context.add_output_metadata(
+        {
+            "count": len(sg_df.index),
+            "preview": MetadataValue.md(sg_df.head().to_markdown()),
+        }
+    )
 
     return sg_df
 
@@ -99,9 +97,7 @@ def stargazers(context: OpExecutionContext, config: StargazerConfig) -> pd.DataF
     compute_kind="GitHub API",
     required_resource_keys={"github"},
 )
-def stargazers_with_user_info(
-    context: OpExecutionContext, stargazers: pd.DataFrame
-) -> pd.DataFrame:
+def stargazers_with_user_info(context: OpExecutionContext, stargazers: pd.DataFrame) -> pd.DataFrame:
     """
     Retrieve individual detailed profiles of stargazers from the GitHub API, and convert to a
     Pandas DataFrame.
@@ -123,8 +119,7 @@ def stargazers_with_user_info(
     stargazers.sort_values(by=["date"], inplace=True)
     if len(stargazers.index) > 4995:
         context.log.info(
-            f"The list is {len(stargazers)} items long, which exceeds the API limit."
-            "  So this might take a while."
+            f"The list is {len(stargazers)} items long, which exceeds the API limit." "  So this might take a while."
         )
 
     for i, stargazer in stargazers.iterrows():
@@ -136,9 +131,7 @@ def stargazers_with_user_info(
             continue
 
         if i % 100 == 0:
-            context.log.debug(
-                f"Completed {i} of {len(stargazers.index)} stargazers."
-            )
+            context.log.debug(f"Completed {i} of {len(stargazers.index)} stargazers.")
 
     df = pd.DataFrame(
         [
@@ -170,16 +163,16 @@ def stargazers_with_user_info(
     )
 
     # Log metadata for easy debugging
-    context.add_output_metadata({
-        "preview": MetadataValue.md(df.head().to_markdown()),
-    })
+    context.add_output_metadata(
+        {
+            "preview": MetadataValue.md(df.head().to_markdown()),
+        }
+    )
     return df
 
 
 @asset(compute_kind="pandas")
-def classified_stargazers_df(
-    context: OpExecutionContext, stargazers_with_user_info: pd.DataFrame
-) -> pd.DataFrame:
+def classified_stargazers_df(context: OpExecutionContext, stargazers_with_user_info: pd.DataFrame) -> pd.DataFrame:
     """
     Buildout dataframe of valuable attributes for these stargazers and analyze.
     """
@@ -189,9 +182,11 @@ def classified_stargazers_df(
     )
 
     # Log metadata for easy debugging
-    context.add_output_metadata({
-        "preview": MetadataValue.md(stargazers_with_user_info.head().to_markdown()),
-    })
+    context.add_output_metadata(
+        {
+            "preview": MetadataValue.md(stargazers_with_user_info.head().to_markdown()),
+        }
+    )
     return stargazers_with_user_info
 
 
@@ -279,11 +274,15 @@ def github_stars_notebook_gist(context: OpExecutionContext, real_vs_raw_stars_re
     **GitHub API Docs**:
     * https://pygithub.readthedocs.io/en/latest/github_objects/AuthenticatedUser.html?highlight=create_gist#github.AuthenticatedUser.AuthenticatedUser.create_gist
     """
-    gist = context.resources.github.get_client().get_user().create_gist(
-        public=False,
-        files={
-            "github_stars.ipynb": InputFileContent(real_vs_raw_stars_report),
-        },
+    gist = (
+        context.resources.github.get_client()
+        .get_user()
+        .create_gist(
+            public=False,
+            files={
+                "github_stars.ipynb": InputFileContent(real_vs_raw_stars_report),
+            },
+        )
     )
     context.log.info(f"Notebook created at {gist.html_url}")
 
@@ -291,12 +290,11 @@ def github_stars_notebook_gist(context: OpExecutionContext, real_vs_raw_stars_re
     context.add_output_metadata({"gist_url": MetadataValue.url(gist.html_url)})
     return gist.html_url
 
+
 def _see_if_user_exists(context: OpExecutionContext, user: str):
     while True:
         try:
-            userDetails = context.resources.github.get_client().get_user(
-                user
-            )  # i.e. NamedUser(login="bfgray3")
+            userDetails = context.resources.github.get_client().get_user(user)  # i.e. NamedUser(login="bfgray3")
             tokensRemaining = int(userDetails._headers["x-ratelimit-remaining"])
             if tokensRemaining % 100 == 0:
                 context.log.info(f"{tokensRemaining} tokens left")
@@ -320,10 +318,7 @@ def _get_retry_at(e):
     try:
         retry_after = int(e.headers["retry-after"])
         return [
-            (
-                f"API throttle hit: {e.data}. Error type {e.__class__.__name__}. Retry in"
-                f" {retry_after} seconds."
-            ),
+            (f"API throttle hit: {e.data}. Error type {e.__class__.__name__}. Retry in" f" {retry_after} seconds."),
             retry_after,
         ]
     except Exception:
@@ -358,9 +353,7 @@ def _handle_exception(e: Exception):
     """
     if e.__class__.__name__ == "RateLimitExceededException":  # API rate limit reached
         print(_get_retry_at(e)[0])
-        print(
-            f"I am going to wait {round(_get_retry_at(e)[1] / 60)} minutes, then continue."
-        )
+        print(f"I am going to wait {round(_get_retry_at(e)[1] / 60)} minutes, then continue.")
         time.sleep(_get_retry_at(e)[1])
         print("done waiting.")
         return True
@@ -369,18 +362,14 @@ def _handle_exception(e: Exception):
         time.sleep(60)
         return True
     elif e.__class__.__name__ == "UnknownObjectException":  # User not found
-        print(
-            f"The item requested does not exist on GitHub - I will skip this one | Error: {e}"
-        )
+        print(f"The item requested does not exist on GitHub - I will skip this one | Error: {e}")
         return None
     elif e.__class__.__name__ == "BadCredentialsException":
         print(f"Your GitHub API credentials failed | Error: {e}")
         time.sleep(300)
         return False
     elif e.__class__.__name__ == "TwoFactorException":
-        print(
-            f"Github requires a onetime password for two-factor authentication | Error: {e}"
-        )
+        print(f"Github requires a onetime password for two-factor authentication | Error: {e}")
         time.sleep(600)
         return False
     elif e.__class__.__name__ == "BadUserAgentException":
@@ -392,10 +381,7 @@ def _handle_exception(e: Exception):
         time.sleep(300)
         return False
     elif e.__class__.__name__ == "IncompletableObject":
-        print(
-            "Cannot request an object from Github because the data returned did not include a URL."
-            f" | Error: {e}"
-        )
+        print("Cannot request an object from Github because the data returned did not include a URL." f" | Error: {e}")
         time.sleep(300)
         return False
     else:
