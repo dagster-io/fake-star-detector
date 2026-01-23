@@ -1,11 +1,20 @@
 {{ config(materialized='table') }} -- materialize as a table to save compute in the future
 
 -- ## pull ALL activity for users who starred repo in time period
+-- 
+-- This model depends on simpler_model.classified_stargazers being available
+-- to ensure proper dependency ordering in Dagster
 
 {% set target_repo = 'frasermarlow/tap-bls' %}
 -- optional params (default to only 2023 data )
 {% set start_star_lookabck_yymmdd = '230101' %} -- start date (Jan 1, 2023)
 {% set end_yymmdd = '231231' %} -- end date (include all of 2023)
+
+-- Reference simpler model source to establish dependency
+-- This ensures simpler_model assets complete before complex_detector runs
+-- Note: Currently commented out as dbt models still use BigQuery syntax
+-- Once migrated to DuckDB, uncomment to use simpler model data:
+-- SELECT 1 FROM {{ source('simpler_model', 'classified_stargazers') }} LIMIT 0
 
 
 WITH watch_event_actors AS (

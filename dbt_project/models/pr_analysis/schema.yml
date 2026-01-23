@@ -1,0 +1,78 @@
+version: 2
+
+models:
+  - name: stg_pull_requests
+    description: "Staging model for pull requests with derived fields like total lines changed and PR sequence number per user"
+    columns:
+      - name: repo
+        description: "Repository name in owner/repo format"
+      - name: pr_number
+        description: "Pull request number"
+      - name: user_login
+        description: "GitHub username of PR creator"
+      - name: pr_sequence_number
+        description: "The order of this PR among all PRs by this user to this repo (1 = first PR)"
+      - name: total_lines_changed
+        description: "Sum of additions and deletions"
+      - name: total_engagement
+        description: "Sum of comments and review comments"
+
+  - name: stg_pr_creators_with_stargazers
+    description: "Join of PR creators with stargazer data to identify users who both starred and created PRs"
+    columns:
+      - name: is_stargazer
+        description: "Whether this PR creator also starred the repository"
+      - name: starred_at
+        description: "Date when user starred the repo (if they did)"
+      - name: account_created_at
+        description: "When the GitHub account was created"
+
+  - name: pr_engagement_quality
+    description: "Analysis of PR engagement quality - flags PRs with low engagement"
+    columns:
+      - name: has_zero_engagement
+        description: "True if PR has no comments or review comments"
+      - name: has_no_discussion
+        description: "True if PR has no comments AND no review comments"
+      - name: is_minimal_change
+        description: "True if PR has less than 10 total lines changed"
+      - name: is_low_quality_first_pr
+        description: "True if this is a first PR with zero engagement and minimal changes"
+
+  - name: pr_first_time_contributors
+    description: "First-time PR contributors with suspicious pattern flags"
+    columns:
+      - name: is_first_time_and_stargazer
+        description: "True if user has only 1 PR AND also starred the repo"
+      - name: starred_before_first_pr
+        description: "True if user starred before creating their first PR"
+      - name: starred_same_day_as_pr
+        description: "True if user starred on the same day as their first PR"
+      - name: has_low_profile
+        description: "True if user has few followers, following, and public repos"
+
+  - name: pr_account_age_analysis
+    description: "Analysis of account age relative to PR activity"
+    columns:
+      - name: days_from_account_to_first_pr
+        description: "Number of days between account creation and first PR"
+      - name: is_new_account_pr
+        description: "True if first PR was within 30 days of account creation"
+      - name: is_same_day_account_and_pr
+        description: "True if first PR was on same day as account creation"
+      - name: is_recent_account
+        description: "True if account was created after 2022-01-01"
+
+  - name: pr_analysis_summary
+    description: "Aggregate summary of PR analysis metrics per repository"
+    columns:
+      - name: total_prs
+        description: "Total number of PRs analyzed"
+      - name: zero_engagement_prs
+        description: "Number of PRs with zero engagement"
+      - name: first_time_contributors
+        description: "Number of users who created only 1 PR"
+      - name: first_time_and_stargazer_count
+        description: "Number of first-time contributors who also starred"
+      - name: suspicious_pr_signals
+        description: "Combined count of suspicious signals (first-time stargazers, same-day stars, same-day accounts, low profiles)"

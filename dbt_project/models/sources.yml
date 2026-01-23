@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: simpler_model
+    description: "Tables created by the simpler model Python assets"
+    schema: main
+    tables:
+      - name: stargazers
+        description: "Raw stargazers data from GitHub API"
+        identifier: simpler_model__stargazers
+      - name: stargazers_with_user_info
+        description: "Stargazers with detailed user profile information"
+        identifier: simpler_model__stargazers_with_user_info
+      - name: classified_stargazers
+        description: "Stargazers classified as fake or real using heuristics"
+        identifier: simpler_model__classified_stargazers
+  
+  - name: pr_analysis
+    description: "Tables created by the PR analysis Python assets"
+    schema: main
+    tables:
+      - name: pull_requests
+        description: "Pull requests data from GitHub API"
+        identifier: simpler_model__pull_requests
+      - name: pr_creators
+        description: "PR creators with activity summary"
+        identifier: simpler_model__pr_creators

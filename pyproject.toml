@@ -1,6 +1,69 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "fake-star-detector"
+version = "0.1.0"
+description = "A Dagster project to analyze fake GitHub stars"
+requires-python = ">=3.10"
+dependencies = [
+    "dagster>=1.11.16",
+    "dagster-cloud[serverless]>=1.11.16",
+    "dagster-dbt>=0.25.0",
+    "dagster-webserver>=1.11.16",
+    "dagster-dg-cli>=1.12.0",
+    "dagster-duckdb>=0.25.0",
+    "PyGithub>=2.0.0",
+    "pandas>=2.0.0",
+    "tenacity>=8.2.0",
+    "dbt-core>=1.6.0",
+    "dbt-duckdb>=1.7.0",
+    "duckdb>=0.9.0",
+    "packaging<22.0",
+    "ruff>=0.14.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+]
 
 [tool.dagster]
 module_name = "fake_star_detector"
+
+[tool.dg]
+directory_type = "project"
+
+[tool.dg.project]
+root_module = "fake_star_detector"
+
+[tool.setuptools]
+packages = {find = {}}
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+]
+testpaths = [
+    "fake_star_detector_tests",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
+python_classes = [
+    "Test*",
+]
+python_functions = [
+    "test_*",
+]
+pythonpath = [
+    "src",
+]
+markers = [
+    "integration: mark integration tests that require external services",
+    "slow: mark tests as slow running",
+]
