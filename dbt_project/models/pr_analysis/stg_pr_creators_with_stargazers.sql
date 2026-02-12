@@ -25,7 +25,8 @@ SELECT
     COALESCE(pui.public_gists, sui.public_gists) as public_gists,
     COALESCE(pui.bio, sui.bio) as bio,
     COALESCE(pui.email, sui.email) as email,
-    COALESCE(pui.company, sui.company) as company
+    COALESCE(pui.company, sui.company) as company,
+    pui.organizations
 FROM {{ source('pr_analysis', 'pr_creators') }} pc
 LEFT JOIN {{ source('simpler_model', 'stargazers') }} sg
     ON pc.repo = sg.repo AND pc.username = sg.user

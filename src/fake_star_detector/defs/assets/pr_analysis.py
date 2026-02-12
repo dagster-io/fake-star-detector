@@ -6,6 +6,7 @@ to identify patterns that may indicate suspicious activity.
 """
 
 import datetime
+import json
 
 from github import GithubException, RateLimitExceededException
 
@@ -489,8 +490,9 @@ def _save_pr_user_records_to_db(
         INSERT OR REPLACE INTO simpler_model__pr_creators_with_user_info 
         (repo, username, created_at, updated_at, bio, blog, company, name, email,
          followers, following, location, hireable, public_gists, public_repos,
-         starred_url, subscriptions_url, twitter_username, raw_data, url, user_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         starred_url, subscriptions_url, twitter_username, organizations,
+         raw_data, url, user_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -512,6 +514,7 @@ def _save_pr_user_records_to_db(
                 r["starred_url"],
                 r["subscriptions_url"],
                 r["twitter_username"],
+                r["organizations"],
                 r["raw_data"],
                 r["url"],
                 r["user_url"],
@@ -576,6 +579,7 @@ def pr_creators_with_user_info(
                 starred_url VARCHAR,
                 subscriptions_url VARCHAR,
                 twitter_username VARCHAR,
+                organizations VARCHAR,
                 raw_data VARCHAR,
                 url VARCHAR,
                 user_url VARCHAR,
@@ -664,6 +668,15 @@ def pr_creators_with_user_info(
 
                 while property_retry_count < max_property_retries:
                     try:
+                        # Fetch public organization memberships (extra API call)
+                        try:
+                            orgs_list = [org.login for org in user_object.get_orgs()]
+                            organizations_json = (
+                                json.dumps(orgs_list) if orgs_list else None
+                            )
+                        except Exception:
+                            organizations_json = None
+
                         user_record = {
                             "repo": repo_name,
                             "username": user_object.login,
@@ -687,6 +700,7 @@ def pr_creators_with_user_info(
                             "starred_url": user_object.starred_url,
                             "subscriptions_url": user_object.subscriptions_url,
                             "twitter_username": user_object.twitter_username,
+                            "organizations": organizations_json,
                             "raw_data": str(user_object.raw_data)
                             if user_object.raw_data
                             else None,
