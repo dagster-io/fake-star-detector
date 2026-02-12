@@ -7,242 +7,38 @@ Partitions allow processing multiple repositories independently.
 from dagster import StaticPartitionsDefinition
 
 repositories_to_analyze = [
-    # Data Orchestration & Workflow Tools
-    "apache/airflow",
-    "n8n-io/n8n",
-    "kestra-io/kestra",
-    "ConductorOSS/conductor",
-    "spotify/luigi",
-    "temporalio/temporal",
-    "PrefectHQ/prefect",
-    "argoproj/argo-workflows",
-    "apache/dolphinscheduler",
-    "dagster-io/dagster",
-    "windmill-labs/windmill",
-    "kedro-org/kedro",
-    "Netflix/metaflow",
-    "mage-ai/mage-ai",
-    "flyteorg/flyte",
-    "linkedin/azkaban",
-    "kubeflow/pipelines",
-    "dagworks-inc/hamilton",
-    
-    # ETL/ELT Frameworks
-    "airbytehq/airbyte",
-    "debezium/debezium",
-    "dbt-labs/dbt-core",
-    "pathwaycom/pathway",
-    "apache/seatunnel",
-    "pentaho/pentaho-kettle",
-    "cloudquery/cloudquery",
-    "apache/nifi",
-    "rudderstack/rudder-server",
-    "dlt-hub/dlt",
-    "TobikoData/sqlmesh",
-    "meltano/meltano",
-    "singer-io/getting-started",
-    "bruin-data/bruin",
-    
-    # Data Quality & Testing
-    "pydantic/pydantic",
-    "great-expectations/great_expectations",
-    "marshmallow-code/marshmallow",
-    "evidentlyai/evidently",
-    "python-jsonschema/jsonschema",
-    "unionai-oss/pandera",
-    "awslabs/deequ",
-    "cerberus/cerberus",
-    "keleshev/schema",
-    "whylabs/whylogs",
-    "sodadata/soda-core",
-    "datacontract/datacontract-cli",
-    "elementary-data/elementary",
-    "re-data/re-data",
-    "calogica/dbt-expectations",
-    "dqops/dqo",
-    
-    # Data Observability & Cataloging
-    "SigNoz/signoz",
-    "openobserve/openobserve",
-    "datahub-project/datahub",
-    "open-metadata/OpenMetadata",
-    "amundsen-io/amundsen",
-    "OpenLineage/OpenLineage",
-    "MarquezProject/marquez",
-    "opendatadiscovery/odd-platform",
-    "AbsaOSS/spline",
-    "grai-io/grai-core",
-    "tokern/data-lineage",
-    
-    # Data Warehousing & Lakehouse
-    "ClickHouse/ClickHouse",
-    "duckdb/duckdb",
-    "apache/doris",
-    "apache/druid",
-    "trinodb/trino",
-    "StarRocks/starrocks",
-    "databendlabs/databend",
-    "delta-io/delta",
-    "apache/datafusion",
-    "apache/iceberg",
-    "apache/hudi",
-    "apache/pinot",
-    "delta-io/delta-rs",
-    "apache/polaris",
-    
-    # Data Lake & Storage
-    "minio/minio",
-    "pola-rs/polars",
-    "seaweedfs/seaweedfs",
-    "dolthub/dolt",
-    "apache/arrow",
-    "treeverse/lakeFS",
-    "iterative/dvc",
-    "apache/parquet-format",
-    "projectnessie/nessie",
-    
-    # ML/AI Frameworks
-    "tensorflow/tensorflow",
-    "huggingface/transformers",
-    "pytorch/pytorch",
-    "keras-team/keras",
-    "scikit-learn/scikit-learn",
-    "google/jax",
-    "explosion/spaCy",
-    "facebookresearch/fairseq",
-    "Lightning-AI/pytorch-lightning",
-    "fastai/fastai",
-    "dmlc/xgboost",
-    "apache/mxnet",
-    "microsoft/LightGBM",
-    "catboost/catboost",
-    "google/flax",
-    "deepmind/dm-haiku",
-    
-    # MLOps & Model Deployment
-    "ray-project/ray",
-    "mlflow/mlflow",
-    "kubeflow/kubeflow",
-    "horovod/horovod",
-    "optuna/optuna",
-    "bentoml/BentoML",
-    "feast-dev/feast",
-    "allegroai/clearml",
-    "zenml-io/zenml",
-    "SeldonIO/seldon-core",
-    "kserve/kserve",
-    "determined-ai/determined",
-    
-    # AutoML & Model Training
-    "hiyouga/LLaMA-Factory",
-    "microsoft/DeepSpeed",
-    "microsoft/nni",
-    "EpistasisLab/tpot",
-    "keras-team/autokeras",
-    "awslabs/autogluon",
-    "automl/auto-sklearn",
-    
-    # LLM Frameworks & Tools
-    "langgenius/dify",
-    "langchain-ai/langchain",
-    "infiniflow/ragflow",
-    "lobehub/lobe-chat",
-    "run-llama/llama_index",
-    "microsoft/autogen",
-    "crewAI/crewai",
-    "stanfordnlp/dspy",
-    "guidance-ai/guidance",
-    "deepset-ai/haystack",
-    "dottxt-ai/outlines",
-    "langchain-ai/langgraph",
-    "openai/swarm",
-    
-    # LLM Inference & Serving
-    "vllm-project/vllm",
-    "FlowiseAI/Flowise",
-    "sgl-project/sglang",
-    "Lightning-AI/litgpt",
-    "NVIDIA/Megatron-LM",
-    "huggingface/text-generation-inference",
-    
-    # LLM Fine-tuning & Alignment
-    "unslothai/unsloth",
-    "huggingface/peft",
-    "huggingface/trl",
-    "axolotl-ai-cloud/axolotl",
-    "OpenRLHF/OpenRLHF",
-    "cloneofsimo/lora",
-    "pytorch/torchtune",
-    "CarperAI/trlx",
-    
-    # Generative AI Applications
-    "AUTOMATIC1111/stable-diffusion-webui",
-    "comfyanonymous/ComfyUI",
-    "openai/whisper",
-    "LocalAI/LocalAI",
-    "suno-ai/bark",
-    "coqui-ai/TTS",
-    "huggingface/diffusers",
-    "Stability-AI/generative-models",
-    "haotian-liu/LLaVA",
-    "facebookresearch/audiocraft",
-    "m-bain/whisperX",
-    "OpenGVLab/InternVL",
-    
-    # Vector Databases & Search
-    "milvus-io/milvus",
-    "facebookresearch/faiss",
-    "qdrant/qdrant",
-    "chroma-core/chroma",
-    "weaviate/weaviate",
-    "pgvector/pgvector",
-    "spotify/annoy",
-    "activeloopai/deeplake",
-    "lancedb/lancedb",
-    "vespa-engine/vespa",
-    "unum-cloud/usearch",
-    "vdaas/vald",
-    
-    # Data Streaming & Real-time
-    "apache/spark",
-    "apache/kafka",
-    "apache/flink",
-    "apache/pulsar",
-    "redpanda-data/redpanda",
-    "AutoMQ/automq",
-    "warpstreamlabs/bento",
-    "risingwavelabs/risingwave",
-    "MaterializeInc/materialize",
-    "ArroyoSystems/arroyo",
-    "bytewax/bytewax",
-    "quixio/quix-streams",
-    
-    # Search & Indexing
-    "redis/redis",
-    "meilisearch/meilisearch",
-    "typesense/typesense",
-    "quickwit-oss/tantivy",
-    "opensearch-project/OpenSearch",
-    "manticoresoftware/manticoresearch",
-    "paradedb/paradedb",
-    
-    # Data Visualization & BI
-    "d3/d3",
-    "grafana/grafana",
-    "apache/superset",
-    "metabase/metabase",
-    "streamlit/streamlit",
-    "gradio-app/gradio",
-    "getredash/redash",
-    "plotly/dash",
-    "cube-js/cube",
-    "evidence-dev/evidence",
-    "holoviz/panel",
-    "lightdash/lightdash",
-    
-    # Emerging & Trending
-    "valkey-io/valkey",
-    "microsoft/data-formulator",
+    # Data Orchestration & Workflow Tools (Core Dagster Ecosystem)
+    "dagster-io/dagster",  # Dagster itself
+    "apache/airflow",  # Main competitor
+    "PrefectHQ/prefect",  # Main competitor
+    "temporalio/temporal",  # Workflow orchestration competitor
+    "kestra-io/kestra",  # Workflow orchestration
+    "kedro-org/kedro",  # Data orchestration framework
+    "mage-ai/mage-ai",  # Data orchestration
+    "dagworks-inc/hamilton",  # Data orchestration (Dagster ecosystem)
+    # ETL/ELT Frameworks (Dagster Integrations)
+    "dbt-labs/dbt-core",  # Core Dagster integration
+    "dlt-hub/dlt",  # Data load tool (Dagster integration)
+    "airbytehq/airbyte",  # ELT platform
+    "TobikoData/sqlmesh",  # SQL transformation framework
+    # Data Quality & Testing (Data Stack Tools)
+    "great-expectations/great_expectations",  # Data quality (Dagster integration)
+    "elementary-data/elementary",  # Data observability
+    "sodadata/soda-core",  # Data quality
+    # Data Observability & Cataloging (Modern Data Stack)
+    "datahub-project/datahub",  # Data catalog
+    "open-metadata/OpenMetadata",  # Data catalog
+    "OpenLineage/OpenLineage",  # Data lineage (Dagster integration)
+    # Data Warehousing & Processing (Modern Data Stack)
+    "duckdb/duckdb",  # Core Dagster integration
+    "pola-rs/polars",  # Data processing
+    "apache/spark",  # Big data processing
+    # MLOps (ML Workflow Tools)
+    "mlflow/mlflow",  # ML lifecycle (often used with Dagster)
+    "ray-project/ray",  # Distributed computing (Dagster integration)
+    # Data Streaming (Real-time Data)
+    "apache/kafka",  # Event streaming
+    "MaterializeInc/materialize",  # Real-time data warehouse
 ]
 
 REPOSITORY_PARTITIONS = StaticPartitionsDefinition(repositories_to_analyze)

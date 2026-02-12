@@ -30,9 +30,10 @@ pr_pipeline_job = define_asset_job(
     selection=[
         "pr_analysis/pull_requests",
         "pr_analysis/pr_creators",
+        "pr_analysis/pr_creators_with_user_info",
     ],
     partitions_def=REPOSITORY_PARTITIONS,
-    description="Collects pull request data from GitHub API for a specific repository. Run with partition_key='owner/repo' to process a specific repository.",
+    description="Collects pull request data and creator profiles from GitHub API for a specific repository. Run with partition_key='owner/repo' to process a specific repository.",
 )
 
 # Combined job: runs both pipelines in sequence for a repository
@@ -46,6 +47,7 @@ repo_data_collection_job = define_asset_job(
         # PR pipeline
         "pr_analysis/pull_requests",
         "pr_analysis/pr_creators",
+        "pr_analysis/pr_creators_with_user_info",
     ],
     partitions_def=REPOSITORY_PARTITIONS,
     description="Collects both stargazer and PR data from GitHub API for a specific repository. Run with partition_key='owner/repo' to process a specific repository.",

@@ -1,6 +1,6 @@
 import datetime
 
-from github import RateLimitExceededException
+from github import GithubException, RateLimitExceededException
 
 from dagster import AssetExecutionContext, MetadataValue, ResourceParam, asset
 from dagster_duckdb import DuckDBResource
@@ -52,32 +52,34 @@ def stargazers(
         else:
             raise e
 
-    # Handle rate limit exceptions during pagination
+    # Handle rate limit and server errors during pagination
     max_retries = 5
     retry_count = 0
     stargazers_list = None
-    
+
     while retry_count < max_retries:
         try:
             stargazers_list = list(stargazers_response)
             break
-        except RateLimitExceededException as e:
+        except (RateLimitExceededException, GithubException) as e:
             retry_count += 1
             exception_handling_result = github.handle_exception(e, context)
             if exception_handling_result is False:
-                context.log.error(f"Rate limit error cannot be retried: {e}")
+                context.log.error(f"Error cannot be retried: {e}")
                 raise e
             elif exception_handling_result is None:
-                context.log.error(f"Unexpected exception handling result for rate limit: {e}")
+                context.log.error(f"Unexpected exception handling result: {e}")
                 raise e
             # If exception_handling_result is True, it means we waited and should retry
             # Get a fresh stargazers_response for the retry
-            context.log.info(f"Retrying stargazers pagination (attempt {retry_count}/{max_retries})")
+            context.log.info(
+                f"Retrying stargazers pagination (attempt {retry_count}/{max_retries})"
+            )
             stargazers_response = github.get_repo_stargazers(repo_name)
         except Exception as e:
             # For other exceptions during pagination, raise immediately
             raise e
-    
+
     if stargazers_list is None:
         raise Exception(f"Failed to fetch stargazers after {max_retries} retries")
 
@@ -96,7 +98,7 @@ def stargazers(
         max_property_retries = 5
         property_retry_count = 0
         stargazer_record = None
-        
+
         while property_retry_count < max_property_retries:
             try:
                 stargazer_record = {
@@ -105,14 +107,14 @@ def stargazers(
                     "date": stargazer.starred_at.date().isoformat(),
                 }
                 break
-            except RateLimitExceededException as e:
+            except (RateLimitExceededException, GithubException) as e:
                 property_retry_count += 1
                 exception_handling_result = github.handle_exception(e, context)
                 if exception_handling_result is False:
-                    context.log.error(f"Rate limit error cannot be retried for stargazer: {e}")
+                    context.log.error(f"Error cannot be retried for stargazer: {e}")
                     raise e
                 elif exception_handling_result is None:
-                    context.log.error(f"Unexpected exception handling result for rate limit: {e}")
+                    context.log.error(f"Unexpected exception handling result: {e}")
                     raise e
                 # If exception_handling_result is True, we waited and should retry
                 context.log.info(
@@ -122,15 +124,19 @@ def stargazers(
                 # For other exceptions, raise immediately
                 context.log.error(f"Error accessing stargazer properties: {e}")
                 raise e
-        
+
         if stargazer_record is None:
-            raise Exception(f"Failed to access stargazer properties after {max_property_retries} retries")
-        
+            raise Exception(
+                f"Failed to access stargazer properties after {max_property_retries} retries"
+            )
+
         stargazer_records_for_insertion.append(stargazer_record)
-        
+
         # Log progress every 1000 stargazers
         if (index + 1) % 1000 == 0:
-            context.log.info(f"Processed {index + 1}/{len(stargazers_list)} stargazers...")
+            context.log.info(
+                f"Processed {index + 1}/{len(stargazers_list)} stargazers..."
+            )
 
     with duckdb.get_connection() as conn:
         conn.execute("""
@@ -181,11 +187,13 @@ def stargazers(
     )
 
 
-def _save_user_records_to_db(conn, records: list, context: AssetExecutionContext) -> None:
+def _save_user_records_to_db(
+    conn, records: list, context: AssetExecutionContext
+) -> None:
     """Helper function to save user records to DuckDB."""
     if not records:
         return
-    
+
     conn.executemany(
         """
         INSERT OR REPLACE INTO simpler_model__stargazers_with_user_info 
@@ -196,11 +204,28 @@ def _save_user_records_to_db(conn, records: list, context: AssetExecutionContext
         """,
         [
             (
-                r["repo"], r["username"], r["starred_at"], r["created_at"], r["updated_at"],
-                r["bio"], r["blog"], r["company"], r["name"], r["email"],
-                r["followers"], r["following"], r["location"], r["hireable"],
-                r["public_gists"], r["public_repos"], r["starred_url"], r["subscriptions_url"],
-                r["twitter_username"], r["raw_data"], r["url"], r["user_url"],
+                r["repo"],
+                r["username"],
+                r["starred_at"],
+                r["created_at"],
+                r["updated_at"],
+                r["bio"],
+                r["blog"],
+                r["company"],
+                r["name"],
+                r["email"],
+                r["followers"],
+                r["following"],
+                r["location"],
+                r["hireable"],
+                r["public_gists"],
+                r["public_repos"],
+                r["starred_url"],
+                r["subscriptions_url"],
+                r["twitter_username"],
+                r["raw_data"],
+                r["url"],
+                r["user_url"],
             )
             for r in records
         ],
@@ -293,7 +318,8 @@ def stargazers_with_user_info(
 
     # Filter out already processed users
     users_to_process = [
-        (username, date) for username, date in stargazers_result
+        (username, date)
+        for username, date in stargazers_result
         if username not in already_processed_set
     ]
 
@@ -313,12 +339,16 @@ def stargazers_with_user_info(
                 "SELECT * FROM simpler_model__stargazers_with_user_info WHERE repo = ? LIMIT 5",
                 (repo_name,),
             ).fetchdf()
-        context.add_output_metadata({
-            "total_processed": already_done_count,
-            "preview": MetadataValue.md(
-                user_info_preview_df.to_markdown() if not user_info_preview_df.empty else "No data"
-            ),
-        })
+        context.add_output_metadata(
+            {
+                "total_processed": already_done_count,
+                "preview": MetadataValue.md(
+                    user_info_preview_df.to_markdown()
+                    if not user_info_preview_df.empty
+                    else "No data"
+                ),
+            }
+        )
         return
 
     if remaining_count > 4995:
@@ -382,15 +412,20 @@ def stargazers_with_user_info(
                             "starred_url": user_object.starred_url,
                             "subscriptions_url": user_object.subscriptions_url,
                             "twitter_username": user_object.twitter_username,
-                            "raw_data": str(user_object.raw_data) if user_object.raw_data else None,
+                            "raw_data": str(user_object.raw_data)
+                            if user_object.raw_data
+                            else None,
                             "url": user_object.url,
                             "user_url": "https://github.com/" + user_object.login,
                         }
                         break
-                    except RateLimitExceededException as e:
+                    except (RateLimitExceededException, GithubException) as e:
                         property_retry_count += 1
                         exception_handling_result = github.handle_exception(e, context)
-                        if exception_handling_result is False or exception_handling_result is None:
+                        if (
+                            exception_handling_result is False
+                            or exception_handling_result is None
+                        ):
                             raise e
                         context.log.info(
                             f"Retrying user property access for {user_object.login} "
@@ -398,7 +433,9 @@ def stargazers_with_user_info(
                         )
 
                 if user_record is None:
-                    context.log.warning(f"Failed to access properties for user {username}, skipping")
+                    context.log.warning(
+                        f"Failed to access properties for user {username}, skipping"
+                    )
                     continue
 
                 user_records_batch.append(user_record)
@@ -419,7 +456,9 @@ def stargazers_with_user_info(
                 error_occurred = True
                 context.log.error(f"Error processing user {username}: {e}")
                 if user_records_batch:
-                    context.log.info(f"Saving {len(user_records_batch)} records before error...")
+                    context.log.info(
+                        f"Saving {len(user_records_batch)} records before error..."
+                    )
                     with duckdb.get_connection() as conn:
                         _save_user_records_to_db(conn, user_records_batch, context)
                 raise
@@ -444,13 +483,17 @@ def stargazers_with_user_info(
         ).fetchdf()
 
     context.log.info(f"Completed processing. Total records in database: {final_count}")
-    context.add_output_metadata({
-        "total_processed": final_count,
-        "new_this_run": processed_count,
-        "preview": MetadataValue.md(
-            user_info_preview_df.to_markdown() if not user_info_preview_df.empty else "No data"
-        ),
-    })
+    context.add_output_metadata(
+        {
+            "total_processed": final_count,
+            "new_this_run": processed_count,
+            "preview": MetadataValue.md(
+                user_info_preview_df.to_markdown()
+                if not user_info_preview_df.empty
+                else "No data"
+            ),
+        }
+    )
 
 
 @asset(
@@ -590,5 +633,3 @@ def classified_stargazers(
             else 0,
         }
     )
-
-

@@ -25,3 +25,6 @@ sources:
       - name: pr_creators
         description: "PR creators with activity summary"
         identifier: simpler_model__pr_creators
+      - name: pr_creators_with_user_info
+        description: "PR creators with detailed user profile information"
+        identifier: simpler_model__pr_creators_with_user_info

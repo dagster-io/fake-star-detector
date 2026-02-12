@@ -56,8 +56,7 @@ class GithubAPI(ConfigurableResource):
                         int(rate_limit_reset)
                     )
                     retry_delay = reset_datetime - (
-                        datetime.datetime.utcnow()
-                        + datetime.timedelta(hours=GMTOFFSET)
+                        datetime.datetime.utcnow() + datetime.timedelta(hours=GMTOFFSET)
                     )
                     return max(60.0, retry_delay.total_seconds() + 60)
             except (ValueError, AttributeError, TypeError):
@@ -73,10 +72,13 @@ class GithubAPI(ConfigurableResource):
         Uses exponential backoff starting at 4 seconds, doubling each retry, max 60 seconds.
         Respects GitHub's retry-after header when rate limited.
         """
+
         @retry(
             stop=stop_after_attempt(5),
             wait=self._wait_with_github_rate_limit,
-            retry=retry_if_exception_type((RateLimitExceededException, GithubException)),
+            retry=retry_if_exception_type(
+                (RateLimitExceededException, GithubException)
+            ),
             reraise=True,
         )
         def _retryable_call():
@@ -201,7 +203,9 @@ class GithubAPI(ConfigurableResource):
                 ]
 
     def handle_exception(
-        self, github_exception: Exception, context: Optional[AssetExecutionContext] = None
+        self,
+        github_exception: Exception,
+        context: Optional[AssetExecutionContext] = None,
     ):
         """
         Handle GitHub API exceptions with appropriate retry logic.
@@ -267,7 +271,9 @@ class GithubAPI(ConfigurableResource):
             time.sleep(300)
             return False
         else:
-            log_func(f"I ran into an error - I will skip this one | Error: {github_exception}")
+            log_func(
+                f"I ran into an error - I will skip this one | Error: {github_exception}"
+            )
             return False
 
 

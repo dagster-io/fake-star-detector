@@ -41,18 +41,18 @@ dbt_project_instance = DbtProject(
 try:
     dbt_project_instance.prepare_if_dev()
     dbt_manifest_path = dbt_project_instance.manifest_path
-    
+
     if not dbt_manifest_path.exists():
         from ..resources import dbt_resource
         import subprocess
         import os
-        
+
         dbt_manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         env = os.environ.copy()
         if "DUCKDB_DATABASE" not in env:
             env["DUCKDB_DATABASE"] = "data/fake_star_detector.duckdb"
-        
+
         result = subprocess.run(
             ["dbt", "parse", "--profiles-dir", DBT_PROFILES_PATH],
             cwd=DBT_PROJECT_PATH,
@@ -60,10 +60,10 @@ try:
             capture_output=True,
             text=True,
         )
-        
+
         if result.returncode != 0:
             raise RuntimeError(f"dbt parse failed: {result.stderr}")
-    
+
     if not dbt_manifest_path.exists():
         raise FileNotFoundError(f"Manifest not found at {dbt_manifest_path}")
 
@@ -83,6 +83,7 @@ try:
     complex_model_assets = complex_detector_dbt_assets
 except Exception as e:
     import warnings
+
     warnings.warn(
         f"Failed to load dbt assets: {e}. "
         "Run 'dbt compile' manually or ensure dbt project is properly configured."

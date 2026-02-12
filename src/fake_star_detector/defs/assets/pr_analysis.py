@@ -7,7 +7,7 @@ to identify patterns that may indicate suspicious activity.
 
 import datetime
 
-from github import RateLimitExceededException
+from github import GithubException, RateLimitExceededException
 
 from dagster import AssetExecutionContext, MetadataValue, ResourceParam, asset
 from dagster_duckdb import DuckDBResource
@@ -20,7 +20,7 @@ def _save_pr_records_to_db(conn, records: list, context: AssetExecutionContext) 
     """Helper function to save PR records to DuckDB."""
     if not records:
         return
-    
+
     conn.executemany(
         """
         INSERT OR REPLACE INTO simpler_model__pull_requests 
@@ -31,10 +31,23 @@ def _save_pr_records_to_db(conn, records: list, context: AssetExecutionContext) 
         """,
         [
             (
-                r["repo"], r["pr_number"], r["title"], r["state"], r["user_login"],
-                r["created_at"], r["updated_at"], r["closed_at"], r["merged_at"],
-                r["merged"], r["merged_by"], r["additions"], r["deletions"],
-                r["changed_files"], r["commits"], r["comments"], r["review_comments"],
+                r["repo"],
+                r["pr_number"],
+                r["title"],
+                r["state"],
+                r["user_login"],
+                r["created_at"],
+                r["updated_at"],
+                r["closed_at"],
+                r["merged_at"],
+                r["merged"],
+                r["merged_by"],
+                r["additions"],
+                r["deletions"],
+                r["changed_files"],
+                r["commits"],
+                r["comments"],
+                r["review_comments"],
             )
             for r in records
         ],
@@ -63,7 +76,9 @@ def pull_requests(
     repo_name = context.partition_key
 
     # Calculate the cutoff date (2 years ago)
-    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=730)
+    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        days=730
+    )
 
     context.log.info(
         f"Starting PR extract for {repo_name} (filtering PRs created after {cutoff_date.date()})"
@@ -83,50 +98,51 @@ def pull_requests(
         else:
             raise e
 
-    # Handle rate limit exceptions during pagination
+    # Handle rate limit and server errors during pagination
     max_retries = 5
     retry_count = 0
     pulls_list = None
-    
+
     while retry_count < max_retries:
         try:
             pulls_list = list(pulls_response)
             break
-        except RateLimitExceededException as e:
+        except (RateLimitExceededException, GithubException) as e:
             retry_count += 1
             exception_handling_result = github.handle_exception(e, context)
             if exception_handling_result is False:
-                context.log.error(f"Rate limit error cannot be retried: {e}")
+                context.log.error(f"Error cannot be retried: {e}")
                 raise e
             elif exception_handling_result is None:
-                context.log.error(f"Unexpected exception handling result for rate limit: {e}")
+                context.log.error(f"Unexpected exception handling result: {e}")
                 raise e
             # If exception_handling_result is True, it means we waited and should retry
             # Get a fresh pulls_response for the retry
-            context.log.info(f"Retrying PR pagination (attempt {retry_count}/{max_retries})")
+            context.log.info(
+                f"Retrying PR pagination (attempt {retry_count}/{max_retries})"
+            )
             pulls_response = github.get_repo_pulls(repo_name, state="all")
         except Exception as e:
             # For other exceptions during pagination, raise immediately
             raise e
-    
+
     if pulls_list is None:
         raise Exception(f"Failed to fetch PRs after {max_retries} retries")
-    
+
     # Filter PRs to only include those created in the past 2 years
     filtered_pulls = [
-        pr for pr in pulls_list
-        if pr.created_at and pr.created_at >= cutoff_date
+        pr for pr in pulls_list if pr.created_at and pr.created_at >= cutoff_date
     ]
-    
+
     total_prs = len(pulls_list)
     filtered_count = len(filtered_pulls)
-    
+
     if total_prs > filtered_count:
         context.log.info(
             f"Filtered {total_prs - filtered_count} PRs older than 2 years. "
             f"Keeping {filtered_count} PRs created after {cutoff_date.date()}"
         )
-    
+
     pulls_list = filtered_pulls
 
     if not pulls_list:
@@ -157,7 +173,9 @@ def pull_requests(
             conn.execute(
                 "DELETE FROM simpler_model__pull_requests WHERE repo = ?", (repo_name,)
             )
-        context.add_output_metadata({"count": 0, "preview": MetadataValue.md("No PRs found")})
+        context.add_output_metadata(
+            {"count": 0, "preview": MetadataValue.md("No PRs found")}
+        )
         return
 
     initial_rate_limit = int(pulls_list[0]._headers.get("x-ratelimit-remaining", 0))
@@ -205,7 +223,7 @@ def pull_requests(
 
     # Filter out already processed PRs
     prs_to_process = [pr for pr in pulls_list if pr.number not in already_processed_set]
-    
+
     already_done_count = len(already_processed_set)
     remaining_count = len(prs_to_process)
     total_pr_count = len(pulls_list)
@@ -227,11 +245,17 @@ def pull_requests(
                 "SELECT repo, pr_number, title, state, user_login, created_at, merged FROM simpler_model__pull_requests WHERE repo = ? LIMIT 5",
                 (repo_name,),
             ).fetchdf()
-        context.add_output_metadata({
-            "count": pr_count,
-            "new_this_run": 0,
-            "preview": MetadataValue.md(pr_preview_df.to_markdown() if not pr_preview_df.empty else "No data"),
-        })
+        context.add_output_metadata(
+            {
+                "count": pr_count,
+                "new_this_run": 0,
+                "preview": MetadataValue.md(
+                    pr_preview_df.to_markdown()
+                    if not pr_preview_df.empty
+                    else "No data"
+                ),
+            }
+        )
         return
 
     # Process PRs with incremental saves
@@ -246,7 +270,7 @@ def pull_requests(
                 max_property_retries = 5
                 property_retry_count = 0
                 pr_record = None
-                
+
                 while property_retry_count < max_property_retries:
                     try:
                         pr_record = {
@@ -255,10 +279,18 @@ def pull_requests(
                             "title": pr.title,
                             "state": pr.state,
                             "user_login": pr.user.login if pr.user else None,
-                            "created_at": pr.created_at.isoformat() if pr.created_at else None,
-                            "updated_at": pr.updated_at.isoformat() if pr.updated_at else None,
-                            "closed_at": pr.closed_at.isoformat() if pr.closed_at else None,
-                            "merged_at": pr.merged_at.isoformat() if pr.merged_at else None,
+                            "created_at": pr.created_at.isoformat()
+                            if pr.created_at
+                            else None,
+                            "updated_at": pr.updated_at.isoformat()
+                            if pr.updated_at
+                            else None,
+                            "closed_at": pr.closed_at.isoformat()
+                            if pr.closed_at
+                            else None,
+                            "merged_at": pr.merged_at.isoformat()
+                            if pr.merged_at
+                            else None,
                             "merged": pr.merged,
                             "merged_by": pr.merged_by.login if pr.merged_by else None,
                             "additions": pr.additions,
@@ -269,10 +301,13 @@ def pull_requests(
                             "review_comments": pr.review_comments,
                         }
                         break
-                    except RateLimitExceededException as e:
+                    except (RateLimitExceededException, GithubException) as e:
                         property_retry_count += 1
                         exception_handling_result = github.handle_exception(e, context)
-                        if exception_handling_result is False or exception_handling_result is None:
+                        if (
+                            exception_handling_result is False
+                            or exception_handling_result is None
+                        ):
                             raise e
                         context.log.info(
                             f"Retrying PR property access for PR #{pr.number} "
@@ -280,7 +315,9 @@ def pull_requests(
                         )
 
                 if pr_record is None:
-                    context.log.warning(f"Failed to access properties for PR #{pr.number}, skipping")
+                    context.log.warning(
+                        f"Failed to access properties for PR #{pr.number}, skipping"
+                    )
                     continue
 
                 pr_records_batch.append(pr_record)
@@ -301,7 +338,9 @@ def pull_requests(
                 error_occurred = True
                 context.log.error(f"Error processing PR #{pr.number}: {e}")
                 if pr_records_batch:
-                    context.log.info(f"Saving {len(pr_records_batch)} PR records before error...")
+                    context.log.info(
+                        f"Saving {len(pr_records_batch)} PR records before error..."
+                    )
                     with duckdb.get_connection() as conn:
                         _save_pr_records_to_db(conn, pr_records_batch, context)
                 raise
@@ -326,11 +365,15 @@ def pull_requests(
         ).fetchdf()
 
     context.log.info(f"Completed processing. Total PRs in database: {pr_count}")
-    context.add_output_metadata({
-        "count": pr_count,
-        "new_this_run": processed_count,
-        "preview": MetadataValue.md(pr_preview_df.to_markdown() if not pr_preview_df.empty else "No data"),
-    })
+    context.add_output_metadata(
+        {
+            "count": pr_count,
+            "new_this_run": processed_count,
+            "preview": MetadataValue.md(
+                pr_preview_df.to_markdown() if not pr_preview_df.empty else "No data"
+            ),
+        }
+    )
 
 
 @asset(
@@ -429,6 +472,302 @@ def pr_creators(
             else 0,
             "preview": MetadataValue.md(
                 preview_df.to_markdown() if not preview_df.empty else "No data"
+            ),
+        }
+    )
+
+
+def _save_pr_user_records_to_db(
+    conn, records: list, context: AssetExecutionContext
+) -> None:
+    """Helper function to save PR creator user profile records to DuckDB."""
+    if not records:
+        return
+
+    conn.executemany(
+        """
+        INSERT OR REPLACE INTO simpler_model__pr_creators_with_user_info 
+        (repo, username, created_at, updated_at, bio, blog, company, name, email,
+         followers, following, location, hireable, public_gists, public_repos,
+         starred_url, subscriptions_url, twitter_username, raw_data, url, user_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                r["repo"],
+                r["username"],
+                r["created_at"],
+                r["updated_at"],
+                r["bio"],
+                r["blog"],
+                r["company"],
+                r["name"],
+                r["email"],
+                r["followers"],
+                r["following"],
+                r["location"],
+                r["hireable"],
+                r["public_gists"],
+                r["public_repos"],
+                r["starred_url"],
+                r["subscriptions_url"],
+                r["twitter_username"],
+                r["raw_data"],
+                r["url"],
+                r["user_url"],
+            )
+            for r in records
+        ],
+    )
+    context.log.info(f"Saved {len(records)} PR creator user records to database")
+
+
+@asset(
+    compute_kind="GitHub API",
+    partitions_def=REPOSITORY_PARTITIONS,
+    deps=["pr_creators"],
+)
+def pr_creators_with_user_info(
+    context: AssetExecutionContext,
+    duckdb: ResourceParam[DuckDBResource],
+    github: ResourceParam[GithubAPI],
+) -> None:
+    """
+    Retrieve detailed GitHub profiles for PR creators and store in DuckDB.
+
+    This asset is partitioned by repository and processes PR creators for the current partition.
+    Supports incremental processing - will skip users already in the database and save progress
+    periodically. On error, saves current progress so reruns can resume from where it stopped.
+
+    **GitHub token is required.** Instructions:
+    * Go to https://github.com/settings/tokens and generate a personal access token with the `gist` permission.
+    * Create a `.env` file with the following contents:
+        ```
+        GITHUB_ACCESS_TOKEN=ghp_YOUR_TOKEN_HERE
+        ```
+
+        For more details, visit https://docs.dagster.io/guides/dagster/using-environment-variables-and-secrets.
+
+    **GitHub API Docs**:
+    * https://pygithub.readthedocs.io/en/latest/github_objects/NamedUser.html
+    """
+    repo_name = context.partition_key
+    BATCH_SIZE = 100  # Save to DB every N users
+
+    # Create table if not exists (do this first so we can check for existing users)
+    with duckdb.get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS simpler_model__pr_creators_with_user_info (
+                repo VARCHAR,
+                username VARCHAR,
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP,
+                bio VARCHAR,
+                blog VARCHAR,
+                company VARCHAR,
+                name VARCHAR,
+                email VARCHAR,
+                followers INTEGER,
+                following INTEGER,
+                location VARCHAR,
+                hireable BOOLEAN,
+                public_gists INTEGER,
+                public_repos INTEGER,
+                starred_url VARCHAR,
+                subscriptions_url VARCHAR,
+                twitter_username VARCHAR,
+                raw_data VARCHAR,
+                url VARCHAR,
+                user_url VARCHAR,
+                PRIMARY KEY (repo, username)
+            )
+        """)
+
+        # Get list of PR creators to process
+        pr_creators_result = conn.execute(
+            """
+            SELECT username
+            FROM simpler_model__pr_creators
+            WHERE repo = ?
+            ORDER BY username
+        """,
+            (repo_name,),
+        ).fetchall()
+
+        # Check which users have already been processed
+        already_processed = conn.execute(
+            """
+            SELECT username FROM simpler_model__pr_creators_with_user_info
+            WHERE repo = ?
+        """,
+            (repo_name,),
+        ).fetchall()
+        already_processed_set = {row[0] for row in already_processed}
+
+    # Filter out already processed users
+    users_to_process = [
+        username
+        for (username,) in pr_creators_result
+        if username not in already_processed_set
+    ]
+
+    total_creator_count = len(pr_creators_result)
+    already_done_count = len(already_processed_set)
+    remaining_count = len(users_to_process)
+
+    context.log.info(
+        f"Found {total_creator_count} total PR creators. "
+        f"{already_done_count} already processed, {remaining_count} remaining."
+    )
+
+    if remaining_count == 0:
+        context.log.info("All PR creator profiles already processed. Nothing to do.")
+        with duckdb.get_connection() as conn:
+            user_info_preview_df = conn.execute(
+                "SELECT * FROM simpler_model__pr_creators_with_user_info WHERE repo = ? LIMIT 5",
+                (repo_name,),
+            ).fetchdf()
+        context.add_output_metadata(
+            {
+                "total_processed": already_done_count,
+                "preview": MetadataValue.md(
+                    user_info_preview_df.to_markdown()
+                    if not user_info_preview_df.empty
+                    else "No data"
+                ),
+            }
+        )
+        return
+
+    if remaining_count > 4995:
+        context.log.info(
+            f"The list is {remaining_count} items long, which exceeds the API limit. "
+            "This might take a while."
+        )
+
+    # Process users with incremental saves
+    user_records_batch = []
+    processed_count = 0
+    error_occurred = False
+
+    try:
+        for index, username in enumerate(users_to_process):
+            try:
+                user_object = github.get_user_details(username, context)
+                if not user_object:
+                    continue
+
+                # Handle rate limit exceptions when accessing user properties
+                max_property_retries = 5
+                property_retry_count = 0
+                user_record = None
+
+                while property_retry_count < max_property_retries:
+                    try:
+                        user_record = {
+                            "repo": repo_name,
+                            "username": user_object.login,
+                            "created_at": user_object.created_at.isoformat()
+                            if user_object.created_at
+                            else None,
+                            "updated_at": user_object.updated_at.isoformat()
+                            if user_object.updated_at
+                            else None,
+                            "bio": user_object.bio,
+                            "blog": user_object.blog,
+                            "company": user_object.company,
+                            "name": user_object.name,
+                            "email": user_object.email,
+                            "followers": user_object.followers,
+                            "following": user_object.following,
+                            "location": user_object.location,
+                            "hireable": user_object.hireable,
+                            "public_gists": user_object.public_gists,
+                            "public_repos": user_object.public_repos,
+                            "starred_url": user_object.starred_url,
+                            "subscriptions_url": user_object.subscriptions_url,
+                            "twitter_username": user_object.twitter_username,
+                            "raw_data": str(user_object.raw_data)
+                            if user_object.raw_data
+                            else None,
+                            "url": user_object.url,
+                            "user_url": "https://github.com/" + user_object.login,
+                        }
+                        break
+                    except (RateLimitExceededException, GithubException) as e:
+                        property_retry_count += 1
+                        exception_handling_result = github.handle_exception(e, context)
+                        if (
+                            exception_handling_result is False
+                            or exception_handling_result is None
+                        ):
+                            raise e
+                        context.log.info(
+                            f"Retrying user property access for {user_object.login} "
+                            f"(attempt {property_retry_count}/{max_property_retries})"
+                        )
+
+                if user_record is None:
+                    context.log.warning(
+                        f"Failed to access properties for user {username}, skipping"
+                    )
+                    continue
+
+                user_records_batch.append(user_record)
+                processed_count += 1
+
+                # Save batch periodically
+                if len(user_records_batch) >= BATCH_SIZE:
+                    with duckdb.get_connection() as conn:
+                        _save_pr_user_records_to_db(conn, user_records_batch, context)
+                    user_records_batch = []
+                    context.log.info(
+                        f"Progress: {processed_count + already_done_count}/{total_creator_count} "
+                        f"({processed_count} new this run)"
+                    )
+
+            except Exception as e:
+                # Save current batch before re-raising
+                error_occurred = True
+                context.log.error(f"Error processing user {username}: {e}")
+                if user_records_batch:
+                    context.log.info(
+                        f"Saving {len(user_records_batch)} records before error..."
+                    )
+                    with duckdb.get_connection() as conn:
+                        _save_pr_user_records_to_db(conn, user_records_batch, context)
+                raise
+
+    finally:
+        # Always save remaining records (even on error or success)
+        if user_records_batch and not error_occurred:
+            with duckdb.get_connection() as conn:
+                _save_pr_user_records_to_db(conn, user_records_batch, context)
+
+    # Get final stats and preview
+    with duckdb.get_connection() as conn:
+        final_count_result = conn.execute(
+            "SELECT COUNT(*) FROM simpler_model__pr_creators_with_user_info WHERE repo = ?",
+            (repo_name,),
+        ).fetchone()
+        final_count = final_count_result[0] if final_count_result else 0
+
+        user_info_preview_df = conn.execute(
+            "SELECT * FROM simpler_model__pr_creators_with_user_info WHERE repo = ? LIMIT 5",
+            (repo_name,),
+        ).fetchdf()
+
+    context.log.info(
+        f"Completed processing. Total PR creator profiles in database: {final_count}"
+    )
+    context.add_output_metadata(
+        {
+            "total_processed": final_count,
+            "new_this_run": processed_count,
+            "preview": MetadataValue.md(
+                user_info_preview_df.to_markdown()
+                if not user_info_preview_df.empty
+                else "No data"
             ),
         }
     )
